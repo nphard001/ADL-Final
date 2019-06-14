@@ -67,7 +67,7 @@ class Ranker():
             val = val ** 2
             val = val.sum(1)
             v, id = val.min(0)
-            idx[i] = id[0]
+            idx[i] = id.item()
         return idx
 
     def k_nearest_neighbors(self, target, K = 10):

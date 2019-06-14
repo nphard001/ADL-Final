@@ -42,7 +42,7 @@ The program saves trained models into the folder `models/` every epoch.
 
 5. To fine-tune the final model with the policy improvement loss, run:
 ```
-python train_rl.py --log-interval=10 --lr=0.0001 --top-k=4 --batch-size=128 --tau=0.2 --pretrained-model="models/sl-10.pt" --save-folder="models/"
+python train_rl.py --log-interval=10 --lr=0.0001 --top-k=4 --batch-size=128 --tau=0.2 --pretrained-model="models/sl-10.pt"
 ```
 The program saves trained models into the folder `models/` every epoch. 
 

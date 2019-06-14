@@ -46,7 +46,7 @@ class Att2inCore(nn.Module):
         att_h = self.h2att(state[0][-1])                        # batch * att_hid_size
         att_h = att_h.unsqueeze(1).expand_as(att)            # batch * att_size * att_hid_size
         dot = att + att_h                                   # batch * att_size * att_hid_size
-        dot = F.tanh(dot)                                # batch * att_size * att_hid_size
+        dot = torch.tanh(dot)                                # batch * att_size * att_hid_size
         dot = dot.view(-1, self.att_hid_size)               # (batch * att_size) * att_hid_size
         dot = self.alpha_net(dot)                           # (batch * att_size) * 1
         dot = dot.view(-1, att_size)                        # batch * att_size
@@ -68,7 +68,7 @@ class Att2inCore(nn.Module):
             in_transform.narrow(1, 0, self.rnn_size),
             in_transform.narrow(1, self.rnn_size, self.rnn_size))
         next_c = forget_gate * state[1][-1] + in_gate * in_transform
-        next_h = out_gate * F.tanh(next_c)
+        next_h = out_gate * torch.tanh(next_c)
 
         output = self.dropout(next_h)
         state = (next_h.unsqueeze(0), next_c.unsqueeze(0))
