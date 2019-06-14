@@ -11,6 +11,12 @@ cd fashion_retrieval && python train_rl.py --log-interval=10 --lr=0.0001 --top-k
 
 # Commit Messages
 
+常用
++ ADD: 加新功能新module新class
++ ENH: 改進東西（最常用）
++ BUG: 修掉的bug內容
++ MAINT, MISC: 其他內容如說明文件typo或單純不知道要寫什麼 (um...🤔)
+
 
 > [scipy development workflow](https://docs.scipy.org/doc/numpy/dev/gitwash/development_workflow.html)
 Standard acronyms to start the commit message with are:
