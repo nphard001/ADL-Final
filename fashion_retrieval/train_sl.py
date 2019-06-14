@@ -91,8 +91,10 @@ class ExpMonitor:
         tmp_rank = ranking.float().mean()
         self.rank[k] += tmp_rank
         self.all_rank[k] += tmp_rank
-        self.loss[k] += loss[0]
-        self.all_loss[k] += loss[0]
+        # self.loss[k] += loss[0]
+        self.loss[k] += loss.item()
+        # self.all_loss[k] += loss[0]
+        self.all_loss[k] += loss.item()
         for i in range(user_img_idx.size(0)):
             self.pos_idx[user_img_idx[i]] += 1
             self.neg_idx[neg_img_idx[i]] += 1
@@ -278,7 +280,6 @@ def eval(epoch):
         act_input = all_input[act_img_idx]
         if torch.cuda.is_available():
             act_input = act_input.cuda()
-        act_input = Variable(act_input, volatile=True)
         act_emb = model.forward_image(act_input)
 
         for k in range(dialog_turns):
@@ -286,7 +287,6 @@ def eval(epoch):
             user.sample_idx(neg_img_idx, train_mode=False)
             if torch.cuda.is_available():
                 txt_input = txt_input.cuda()
-            txt_input = Variable(txt_input, volatile=True)
 
             action = model.merge_forward(act_emb, txt_input)
             act_img_idx = ranker.nearest_neighbor(action.data)
@@ -297,7 +297,6 @@ def eval(epoch):
                 user_input = user_input.cuda()
                 neg_input = neg_input.cuda()
                 new_act_input = new_act_input.cuda()
-            user_input, neg_input, new_act_input = Variable(user_input, volatile=True), Variable(neg_input, volatile=True), Variable(new_act_input, volatile=True)
             new_act_emb = model.forward_image(new_act_input)
 
             ranking_candidate = ranker.compute_rank(action.data, user_img_idx)

@@ -90,8 +90,8 @@ class ExpMonitor():
         tmp_rank = ranking.float().mean()
         self.rank[k] += tmp_rank
         self.all_rank[k] += tmp_rank
-        self.loss[k] += loss[0]
-        self.all_loss[k] += loss[0]
+        self.loss[k] += loss.item()
+        self.all_loss[k] += loss.item()
         for i in range(user_img_idx.size(0)):
             self.pos_idx[user_img_idx[i]] += 1
             self.act_idx[act_img_idx[i]] += 1

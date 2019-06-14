@@ -8,6 +8,7 @@ runtime/*
 tmp_*
 static/*
 
+
 # ignore models
 fashion_retrieval/caption_models/infos_best.pkl
 fashion_retrieval/caption_models/model_best.pth
