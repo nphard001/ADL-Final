@@ -90,10 +90,11 @@ class SynUser:
             act_att = act_att.cuda()
             user_fc = user_fc.cuda()
             user_att = user_att.cuda()
-        seq_label, sents_label = self.captioner_relative.gen_caption_from_feat((Variable(user_fc, volatile=True),
-                                                                                Variable(user_att, volatile=True)),
-                                                                               (Variable(act_fc, volatile=True),
-                                                                                Variable(act_att, volatile=True)))
+        with torch.no_grad():
+            seq_label, sents_label = self.captioner_relative.gen_caption_from_feat((Variable(user_fc),
+                                                                                    Variable(user_att)),
+                                                                                   (Variable(act_fc),
+                                                                                    Variable(act_att)))
 
         res = torch.LongTensor(seq_label.size(0), 16).zero_()
         len = seq_label.size(1)
