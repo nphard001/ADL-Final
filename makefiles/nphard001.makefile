@@ -1,0 +1,19 @@
+# ssh specific make
+HOST = linux7
+HOST_PREFIX = /tmp2/b04303128
+PROJECT = ADL-Final
+HOST_PROJECT := $(HOST_PREFIX)/$(PROJECT)/
+MINI_DIR = $(HOST_PREFIX)/mini
+MINI_BIN = $(HOST_PREFIX)/mini/bin
+CONDA := $(MINI_BIN)/conda
+PIP := $(MINI_BIN)/pip
+PYTHON := $(MINI_BIN)/python
+UWSGI := $(MINI_BIN)/uwsgi
+RSYNC_EXCLUDE_LIST = *.git* *__pycache__* *.sqlite3*
+RSYNC_EXCLUDE := $(RSYNC_EXCLUDE_LIST:%=--exclude="%")
+linux7:
+	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
+	ssh linux7 "cd $(HOST_PROJECT) && make chatbot_touch_ini"
+linux7_full:
+	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
+

@@ -1,9 +1,20 @@
 # Final Project
-
+## To Train Original Repo
+1. 
+```
+cd fashion_retrieval && python train_sl.py --log-interval=50 --lr=0.001  --batch-size=128 --model-folder="models/"
+```
+2. 
+```
+cd fashion_retrieval && python train_rl.py --log-interval=10 --lr=0.0001 --top-k=4 --batch-size=128 --tau=0.2 --pretrained-model="models/sl-10.pt"
+```
 
 # Commit Messages
+
+
 > [scipy development workflow](https://docs.scipy.org/doc/numpy/dev/gitwash/development_workflow.html)
->> Standard acronyms to start the commit message with are:
+Standard acronyms to start the commit message with are:
+
 + API: an (incompatible) API change
 + BENCH: changes to the benchmark suite
 + BLD: change related to building numpy

@@ -3,9 +3,11 @@ all:
 	@echo nothing to build
 # ================================================================
 chatbot_start:
-	cd chatbot && uwsgi --ini="uwsgi.ini"
+	cd chatbot && $(UWSGI) --ini="uwsgi.ini"
 chatbot_start_by_django:
 	cd chatbot && python manage.py start
+chatbot_touch_ini:
+	touch chatbot/uwsgi.ini
 
 fr_train_sl:
 	cd fashion_retrieval && python train_sl.py --log-interval=50 --lr=0.001  --batch-size=128 --model-folder="models/"

@@ -9,3 +9,7 @@ setup_touch_init:
 	touch fashion_retrieval/__init__.py
 	touch fashion_retrieval/captioner/__init__.py
 	touch fashion_retrieval/captioner/neuraltalk2/__init__.py
+
+install_line:
+	$(PIP) install line-bot-sdk
+
