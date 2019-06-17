@@ -10,7 +10,7 @@ def _ApplyURLPatterns():
 
 from linebot import LineBotApi, WebhookParser
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 # NOTE: not safe
 line_bot_api = LineBotApi('jn9fH2MHKmg8tpT8oJJj9tsUWefjiUaJyyk2IiHajUQs4g3Du2zcCljM+mi89Acy1ZHZcTBl/Nnyh6EIRSCYnlc96IHI4tEyy0/eKq3XzVyLHMY2ix8FtpVTsJrGbiVPl5kgMcPJPKcmBmeOLi07SwdB04t89/1O/w1cDnyilFU=')
 parser = WebhookParser('0b8f65e722157e4be0e36b9228754f56')
@@ -32,7 +32,10 @@ def line_webhook(request):
             # multi-event single reply
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=body)
+                ImageSendMessage(
+                    original_content_url='https://nphard001.herokuapp.com/data/image',
+                    preview_image_url='https://nphard001.herokuapp.com/data/image',
+                )
             )
             break
             # print("""#---== got new EVENT!!! ==---#\n%s\n#---== --- ==---#"""%repr(event))
