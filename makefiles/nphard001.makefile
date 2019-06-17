@@ -20,5 +20,5 @@ linux7_static:
 	rsync -avzh ../$(PROJECT)/static/ $(HOST):$(HOST_PROJECT)/static/
 
 FORWARDER = /Users/qtwu/Drive/Active/forwarder
-forwarder_sync_adl forwarder_sync_heroku forwarder_hang_heroku_log: forwarder_%:
+forwarder_auto forwarder_sync_adl forwarder_sync_heroku forwarder_hang_heroku_log: forwarder_%:
 	make $* -C $(FORWARDER)

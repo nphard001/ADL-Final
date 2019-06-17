@@ -11,7 +11,6 @@ def _ApplyURLPatterns():
 @csrf_exempt
 def image_view(request):
     # return 240x240 image
-    print('got json', json.loads)
     img = HTTPGet2Image('https://linux7.csie.org:3721/static/attributedata/bags_evening/0/img_bags_evening_216.jpg')
     img.thumbnail([240, 240]) # it's inplace
     img_bytes = BytesIO()
