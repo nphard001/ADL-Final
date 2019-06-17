@@ -18,3 +18,9 @@ fashion_retrieval/features/fc_feature.npz
 
 # ignore pytorch ckpt
 *.pt
+
+# ignore images
+fashion_retrieval/images/*
+
+# ignore PyCharm project configs
+.idea/*
