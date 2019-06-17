@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'channels',
     'chatbot_main',
     'host_data',
+    'host_line',
     
 ]
 
