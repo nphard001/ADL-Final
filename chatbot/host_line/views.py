@@ -33,8 +33,8 @@ def line_webhook(request):
             line_bot_api.reply_message(
                 event.reply_token,
                 ImageSendMessage(
-                    original_content_url='https://nphard001.herokuapp.com/data/image',
-                    preview_image_url='https://nphard001.herokuapp.com/data/image',
+                    original_content_url='https://nphard001.herokuapp.com/line/image',
+                    preview_image_url='https://nphard001.herokuapp.com/line/image',
                 )
             )
             break
@@ -48,6 +48,7 @@ def line_webhook(request):
     else:
         return HttpResponseBadRequest()
 
+@never_cache
 @csrf_exempt
 def image_fetch_view(request):
     # url = 'https://linux7.csie.org:3721/static/attributedata/bags_evening/0/img_bags_evening_216.jpg'
