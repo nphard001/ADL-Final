@@ -1,5 +1,4 @@
-import datetime
-now = lambda: datetime.datetime.now().timestamp()
+from nphard001.utils import *
 class TestClass:
     def text(self):
         ts = now()

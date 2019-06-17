@@ -1,7 +1,5 @@
 # web.py: old "utils", but for web things only
-import os, sys, json
-from typing import Callable, List, Dict, Optional, ClassVar
-from collections import OrderedDict, defaultdict
+from nphard001.utils import *
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
