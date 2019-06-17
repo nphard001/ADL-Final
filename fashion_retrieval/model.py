@@ -1,15 +1,11 @@
 from __future__ import print_function
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 
-#
 class NetSynUser(nn.Module):
-    def __init__(self, num_emb):
+    def __init__(self, num_emb, hid_dim=256, txt_len=16):
         super(NetSynUser, self).__init__()
-        hid_dim = 256
-        txt_len = 16
         self.hid_dim = hid_dim
         self.rep_dim = hid_dim
 
@@ -28,12 +24,10 @@ class NetSynUser(nn.Module):
         self.train()
         for param in self.img_linear.parameters():
             param.requires_grad = False
-        return
 
     def clear_rl_mode(self):
         for param in self.img_linear.parameters():
             param.requires_grad = True
-        return
 
     def forward_image(self, image_input):
         return self.img_linear(image_input)
@@ -64,9 +58,7 @@ class NetSynUser(nn.Module):
         return x
 
     def init_hid(self, batch_size):
-        self.hx = Variable(torch.Tensor(batch_size, self.hid_dim).zero_())
-        return
+        self.hx = torch.Tensor(batch_size, self.hid_dim).zero_()
 
     def detach_hid(self):
-        self.hx = Variable(self.hx.data)
-        return
+        self.hx = self.hx.data
