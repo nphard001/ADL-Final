@@ -2,7 +2,7 @@
 from nphard001.utils import *
 from mako.template import Template
 from mako.lookup import TemplateLookup
-from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import requires_csrf_token, csrf_exempt
 from django.shortcuts import render, redirect
 from django.template.context_processors import csrf

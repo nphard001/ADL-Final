@@ -11,6 +11,7 @@ def _ApplyURLPatterns():
 @csrf_exempt
 def image_view(request):
     # return 240x240 image
+    print('got json', json.loads)
     img = HTTPGet2Image('https://linux7.csie.org:3721/static/attributedata/bags_evening/0/img_bags_evening_216.jpg')
     img.thumbnail([240, 240]) # it's inplace
     img_bytes = BytesIO()
@@ -23,17 +24,27 @@ def image_view(request):
 
 @csrf_exempt
 def test_view(request):
-    d1 = dict(request.GET)
-    d1['array'] = [1, 3, 3, 7]
-    d1['attached_text'] = TestClass().text()
-    d1['attached_image'] = TestClass().image()
-    d2 = dict(request.POST)
-    d2['post_len'] = len(d2.keys())
-    s0 = json.dumps({
-        'GET': d1,
-        'POST': d2,
-    })
-    return RawResponse(s0)
+    # JSON
+    json_body = json.loads(request.body.decode('utf-8'))
+    return JsonResponse({
+        'state': 'done', 
+        'id_list': [1, 3, 3, 7],
+        'json_body': json_body,
+        'method': request.method,
+        })
+    
+    # GET & POST
+    # d1 = dict(request.GET)
+    # d1['array'] = [1, 3, 3, 7]
+    # d1['attached_text'] = TestClass().text()
+    # d1['attached_image'] = TestClass().image()
+    # d2 = dict(request.POST)
+    # d2['post_len'] = len(d2.keys())
+    # s0 = json.dumps({
+    #     'GET': d1,
+    #     'POST': d2,
+    # })
+    # return RawResponse(s0)
 
 @csrf_exempt
 def dump_view(request):
