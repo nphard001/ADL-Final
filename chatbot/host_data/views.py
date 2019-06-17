@@ -1,5 +1,7 @@
 from nphard001.web import *
 from nphard001.img import *
+from nphard001.api_data import *
+from django.contrib.staticfiles.templatetags.staticfiles import static
 urlpatterns = []
 def _ApplyURLPatterns():
     urlpatterns.append(url(r'image', image_view))
@@ -8,7 +10,16 @@ def _ApplyURLPatterns():
 
 @csrf_exempt
 def image_view(request):
-    return RawResponse('WIP')
+    # return 240x240 image
+    img = HTTPGet2Image('https://linux7.csie.org:3721/static/attributedata/bags_evening/0/img_bags_evening_216.jpg')
+    img.thumbnail([240, 240]) # it's inplace
+    img_bytes = BytesIO()
+    img.save(img_bytes, 'jpeg')
+    return HttpResponse(img_bytes.getvalue(), content_type="image/jpeg")
+    
+    # forward image from static
+    # img_req = HTTPGet(static('attributedata/bags_evening/0/img_bags_evening_216.jpg'))
+    # return HttpResponse(img_req.content) # get bytes & send bytes
 
 @csrf_exempt
 def test_view(request):

@@ -17,6 +17,6 @@ setup_symlink_chatbot:
 	-ln -s ../nphard001/ chatbot/nphard001
 	tree -d chatbot
 
-install_line:
+install_chatbot:
 	$(PIP) install line-bot-sdk
-
+	$(PIP) install Pillow
