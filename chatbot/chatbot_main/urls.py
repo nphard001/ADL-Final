@@ -21,6 +21,9 @@ import chatbot_main.view_api
 
 urlpatterns = [
     path(r'admin/', admin.site.urls),
-    url(r'^chatbot/callback/', chatbot_main.view_api.chatbot_callback),
+    path(r'data/', include('host_data.views')),
+    path(r'line/', include('host_line.views')),
+    url(r'^webhook', chatbot_main.view_api.chatbot_callback),
+    url(r'^chatbot/callback', chatbot_main.view_api.chatbot_callback),
     url(r'^chatbot/', chatbot_main.view_basic.basic_view),
 ]
