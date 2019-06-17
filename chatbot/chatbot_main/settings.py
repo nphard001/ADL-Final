@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'chatbot_main',
+    'host_data',
     
 ]
 
