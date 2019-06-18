@@ -1,7 +1,7 @@
 
 from django.contrib import admin
-from chatbot_main.model import *
-# admin.site.register(Table1)
+from host_data.models import *
+admin.site.register(AttrMetadata)
 # admin.site.register(RawData)
 # admin.site.register(Parsed)
 # admin.site.register(PosQuery)

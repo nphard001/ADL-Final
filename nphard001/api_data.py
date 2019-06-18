@@ -13,6 +13,23 @@ class HostData:
     def __init__(self, host: str=r'https://linux7.csie.org:3721'):
         host = host.rstrip('/')
         self.host = host
+    def get_metadata(self):
+        return HTTPJson2Json(f'{self.host}/data/attributedata', {
+            'type': 'metadata',
+        })
+    def get_txt(self, category: str='earrings_studs', img_id: int=1555):
+        return HTTPJson2Json(f'{self.host}/data/attributedata', {
+            'type': 'txt',
+            'category': category,
+            'img_id': img_id,
+        })
+    def get_jpg(self, category: str='earrings_studs', img_id: int=1555):
+        return HTTPJson2Image(f'{self.host}/data/attributedata', {
+            'type': 'jpg',
+            'category': category,
+            'img_id': img_id,
+        })
+        
 
 def HTTPPost(url: str, params: Optional[Dict]=None):
     r'''call requests.post without CA verify'''

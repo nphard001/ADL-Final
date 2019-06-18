@@ -21,3 +21,9 @@ body, table, select, input, img {
   font-size: 1em;
   line-height: 1.8em;
 }
+
+.random_image {
+  height: 80vh;
+  width: 25vw;
+  overflow-y: scroll;
+}
