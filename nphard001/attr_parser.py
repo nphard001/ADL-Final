@@ -1,4 +1,12 @@
 import os, re, json
+def AttrFilenameSplit(f: str='img_womens_pumps_813.jpg'):
+    r'''
+    convert a row from "train_im_names.txt" format to (fctg, fid)
+    example:
+        input: img_womens_pumps_813.jpg
+        output: ("womens_pumps", 813)
+        '''
+    return re.findall('img_([\S\W]+)_([\S\W]+).jpg', f)[0]
 class AttrParser:
     def __init__(self, attr_root: str='../static/attributedata'):
         self.attr_root = attr_root
@@ -8,7 +16,7 @@ class AttrParser:
             if len(files)>0:
                 for f in files:
                     if 'img_' in f:
-                        fctg, fid = re.findall('img_([\S\W]+)_([\S\W]+).jpg', f)[0]
+                        fctg, fid = AttrFilenameSplit(f)
                         f1 = os.path.join(root, f)
                         f2 = os.path.join(root, f'descr_{fctg}_{fid}.txt')
                         assert os.access(f1, os.R_OK)
