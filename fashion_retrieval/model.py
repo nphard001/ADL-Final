@@ -126,15 +126,13 @@ class StateTracker(nn.Module):
 
         self.output_shape = (N, 256)
 
-    def forward(self, pre_rep, response_rep):
+    def forward(self, response_rep, history_rep=None):
         """
-
-        :pre_rep size(N, timestep-1, input_dim)
-        :param response_rep: size(N, input_dim)
-        :return:
-        """
-
-        """
+        
+        :param response_rep: N, M
+        :param history_rep: N, k-1, M  if k==0 history_rep = None
+        :return: 
+        """"""
         concat(res_rep_0 ~ res_rep_i) -> shape N, i, input_dim
         
         Transformer input szie N, seq_len, input_dim
