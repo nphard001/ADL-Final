@@ -54,7 +54,7 @@ class SynUser:
               f'Using device: {self.device}')
         return
 
-    def sample_idx(self, img_idx: torch.LongTensor, train_mode: bool) -> None:
+    def sample_idx(self, img_idx: torch.Tensor, train_mode: bool) -> None:
         """
         change the value in "img_idx" with value from 0 ~ NUM_TRAIN-1 randomly
 
@@ -67,8 +67,8 @@ class SynUser:
         return
 
     def get_feedback(self,
-                     act_idx: torch.LongTensor,
-                     user_idx: torch.LongTensor,
+                     act_idx: torch.Tensor,
+                     user_idx: torch.Tensor,
                      train_mode: bool = True) -> torch.Tensor:
         """
         get the text feedback describing difference between proposed image and ground truth image

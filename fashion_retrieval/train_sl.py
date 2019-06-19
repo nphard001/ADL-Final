@@ -3,16 +3,17 @@ from __future__ import print_function
 import argparse
 import math
 import random
+import os
 
 import ipdb
 import torch
 import torch.optim as optim
 
-from sim_user import SynUser
-from ranker import Ranker
-from model import NetSynUser
-from loss import TripletLossIP
-from monitor import ExpMonitorSl as ExpMonitor
+from src.sim_user import SynUser
+from src.ranker import Ranker
+from src.model import ResponseEncoder, StateTracker
+from src.loss import TripletLossIP
+from src.monitor import ExpMonitorSl as ExpMonitor
 
 
 def parse_args():
@@ -44,7 +45,8 @@ def parse_args():
 
 def train_val_epoch(train: bool):
     print(('Train' if train else 'Eval') + f'\tepoch #{epoch}')
-    model.train(train)
+    encoder.train(train)
+    tracker.train(train)
 
     exp_monitor_candidate = ExpMonitor(args, user, train_mode=train)
     img_features = user.train_feature.to(device) if train else user.test_feature.to(device)
@@ -56,7 +58,7 @@ def train_val_epoch(train: bool):
     num_batches = math.ceil(img_features.size(0) / args.batch_size)
 
     if not train:
-        ranker.update_rep(model, img_features)
+        ranker.update_rep(encoder, img_features)
 
     for batch_idx in range(1, num_batches + 1):
         # sample target images and first turn feedback images
@@ -64,13 +66,10 @@ def train_val_epoch(train: bool):
         user.sample_idx(candidate_img_idx, train_mode=train)
 
         if train:
-            ranker.update_rep(model, img_features)
+            ranker.update_rep(encoder, img_features)
 
-        model.init_hid(args.batch_size)
-
+        history_rep = None
         outs = []
-
-        history_representation = None
         # start dialog
         for k in range(dialog_turns):
             candidate_img_feat = ranker.feat[candidate_img_idx].to(device)
@@ -81,16 +80,19 @@ def train_val_epoch(train: bool):
             # get relative captions from user model given user target images and feedback images
             relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
                                                   user_idx=target_img_idx, train_mode=train).to(device)
-            # encode the response representation and update history representation
-            history_representation = model.merge_forward(candidate_img_feat, relative_text_idx,
-                                                         history_representation)
+            # encode image and relative_text_ids
+            response_rep = encoder(candidate_img_feat, relative_text_idx)
+            # update history representation
+            current_state, history_rep = tracker(response_rep, history_rep)
             # obtain the next turn's feedback images
-            candidate_img_idx = ranker.nearest_neighbor(history_representation.detach())
+            candidate_img_idx = ranker.nearest_neighbor(current_state.detach())
 
             # ranking and loss
-            ranking_candidate = ranker.compute_rank(history_representation.detach(), target_img_idx)
+            ranking_candidate = ranker.compute_rank(current_state.detach(), target_img_idx)
 
-            loss = triplet_loss.forward(history_representation, target_img_feat, false_img_feat)
+            # TODO:                       STATE SPACE     IMAGE SPACE      IMAGE SPACE
+            # TODO: the training input of triplet loss are not in the same space
+            loss = triplet_loss.forward(current_state, target_img_feat, false_img_feat)
 
             outs.append(loss)
             # log
@@ -99,10 +101,12 @@ def train_val_epoch(train: bool):
 
         if train:
             # finish dialog and update model parameters
-            optimizer.zero_grad()
+            optimizer_encoder.zero_grad()
+            optimizer_tracker.zero_grad()
             mean_loss = torch.stack(outs).mean()
             mean_loss.backward()
-            optimizer.step()
+            optimizer_encoder.step()
+            optimizer_tracker.step()
 
         if batch_idx % args.log_interval == 0:
             exp_monitor_candidate.print_interval(epoch, batch_idx, num_batches)
@@ -123,12 +127,17 @@ if __name__ == '__main__':
         user = SynUser()
         ranker = Ranker()
 
-        model = NetSynUser(user.vocabSize + 1).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-8)
+        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16).to(device)
+        tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
+
+        optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr)
+        optimizer_tracker = optim.Adam(tracker.parameters(), lr=args.lr)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
 
         for epoch in range(1, args.epochs + 1):
             train_val_epoch(train=True)
             with torch.no_grad():
                 train_val_epoch(train=False)
-            torch.save(model.state_dict(), (args.model_folder + 'sl-{}.pt').format(epoch))
+            torch.save({'encoder': encoder.state_dict(),
+                        'tracker': tracker.state_dict()},
+                       os.path.join(args.model_folder, f'sl-{epoch}.pt'))
