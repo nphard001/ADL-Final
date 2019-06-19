@@ -111,7 +111,7 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
     return act_opt, reg + loss
 
 
-def train_rl(epoch, train: bool):
+def train_val_rl(epoch, train: bool):
     print(('Train' if train else 'Eval') + f'\tEpoch #{epoch}')
     if train:
         behavior_encoder.set_rl_mode()
@@ -222,11 +222,11 @@ if __name__ == '__main__':
 
         for epoch in range(1, args.epochs+1):
             with torch.no_grad():
-                train_rl(epoch, train=False)
-            train_rl(epoch, train=True)
+                train_val_rl(epoch, train=False)
+            train_val_rl(epoch, train=True)
             torch.save({'encoder': behavior_encoder.state_dict(),
                         'tracker': behavior_tracker.state_dict()},
                        os.path.join(args.model_folder, f'rl-{epoch}.pt'))
 
         with torch.no_grad:
-            train_rl(args.epochs, train=False)
+            train_val_rl(args.epochs, train=False)

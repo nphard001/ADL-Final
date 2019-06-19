@@ -89,18 +89,18 @@ class ExpMonitorRl:
         self.user = user
         self.train_mode = train_mode
 
-        self.num_turns = self.args.train_turns if self.train_mode else self.args.test_turns
-        self.num_act = self.user.NUM_TRAIN if self.train_mode else self.user.NUM_TEST
+        self.num_dialog_turns = self.args.train_turns if self.train_mode else self.args.test_turns
+        self.num_data = self.user.NUM_TRAIN if self.train_mode else self.user.NUM_TEST
 
-        self.loss = torch.zeros(self.num_turns)
-        self.all_loss = torch.zeros(self.num_turns)
-        self.rank = torch.zeros(self.num_turns)
-        self.all_rank = torch.zeros(self.num_turns)
+        self.loss = torch.zeros(self.num_dialog_turns)
+        self.all_loss = torch.zeros(self.num_dialog_turns)
+        self.rank = torch.zeros(self.num_dialog_turns)
+        self.all_rank = torch.zeros(self.num_dialog_turns)
         self.count = 0.0
         self.all_count = 0.0
         self.start_time = time.time()
-        self.pos_idx = torch.zeros(self.num_act)
-        self.act_idx = torch.zeros(self.num_act)
+        self.pos_idx = torch.zeros(self.num_data)
+        self.act_idx = torch.zeros(self.num_data)
 
     def log_step(self, ranking, loss, user_img_idx, act_img_idx, k):
         tmp_rank = ranking.float().mean()
@@ -124,13 +124,13 @@ class ExpMonitorRl:
             self.pos_idx.max(), self.pos_idx.min(), self.act_idx.max(), self.act_idx.min()
         )
 
-        self.rank.mul_(self.num_turns / self.count)
+        self.rank.mul_(self.num_dialog_turns / self.count)
         self.loss.mul_(1.0 / self.count)
         output_string += 'rank:'
-        for i in range(self.num_turns):
-            output_string += '{:.4f}\t '.format(self.rank[i] / self.num_act)
+        for i in range(self.num_dialog_turns):
+            output_string += '{:.4f}\t '.format(self.rank[i] / self.num_data)
         output_string += '\nloss:'
-        for i in range(self.num_turns):
+        for i in range(self.num_dialog_turns):
             output_string += '{:.4f}\t '.format(self.loss[i])
         print(output_string)
         self.loss.zero_()
@@ -139,13 +139,13 @@ class ExpMonitorRl:
         sys.stdout.flush()
 
     def print_all(self, epoch):
-        self.all_rank.mul_(self.num_turns / self.all_count)
+        self.all_rank.mul_(self.num_dialog_turns / self.all_count)
         self.all_loss.mul_(1.0 / self.all_count)
         output_string = '{} #rank:'.format(epoch)
-        for i in range(self.num_turns):
-            output_string += '{:.4f}\t '.format(self.all_rank[i] / self.num_act)
+        for i in range(self.num_dialog_turns):
+            output_string += '{:.4f}\t '.format(self.all_rank[i] / self.num_data)
         output_string += '\n{} #loss:'.format(epoch)
-        for i in range(self.num_turns):
+        for i in range(self.num_dialog_turns):
             output_string += '{:.4f}\t '.format(self.all_loss[i])
         print(output_string)
 

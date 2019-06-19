@@ -51,13 +51,13 @@ class Ranker:
             idx[i] = min_idx.item()
         return idx
 
-    def k_nearest_neighbors(self, target, K=10):
+    def k_nearest_neighbors(self, target, k=4):
         target.to(self.device)
         idx = torch.empty(target.size(0), K, dtype=torch.long)
 
         for i in range(target.size(0)):
             val = self.feat - target[i].expand(self.feat.size(0), self.feat.size(1))
             val = torch.pow(val, 2).sum(1)
-            v, id = torch.topk(val, k=K, dim=0, largest=False)
-            idx[i].copy_(id.view(-1))
+            _, idx = torch.topk(val, k=k, dim=0, largest=False)
+            idx[i].copy_(idx.view(-1))
         return idx
