@@ -9,7 +9,7 @@ from django.template.context_processors import csrf
 from django.conf import settings
 from django.urls import path
 from django.conf.urls import url, include
-from django.views.decorators.cache import never_cache
+from django.views.decorators.cache import never_cache, cache_page
 def MakoExtraOption()->dict:
     return {
         'input_encoding': 'utf-8',
@@ -65,3 +65,31 @@ def RawResponse(x: str):
     r'''respond the string directly (mostly for test or APIs)'''
     return HttpResponse(x.encode('utf-8'))
 
+ChatbotMakoMgr = MakoManager(['mako'])
+ChatbotMako = ChatbotMakoMgr.render
+def get_common_nav():
+    return ChatbotMako(r'<%include file="nav.html"/>')
+    
+def HTMLImageTable(object_list: list, num_each_row: int=8, grid_class: str='random_image'):
+    return ChatbotMako(r'''
+<table>
+% for i_grid, (img_src, txt) in enumerate(object_list):
+    % if i_grid%num_each_row==0:
+    <tr>
+    % endif
+    <td>
+    <div class='${grid_class}'>
+    <img src='${img_src}'><br>${txt}
+    </div>
+    </td>
+    % if (i_grid+1)%num_each_row==0:
+    </tr>
+    % endif
+% endfor
+</table>
+    '''.strip(), {
+        'object_list': object_list,
+        'num_each_row': num_each_row,
+        'grid_class': grid_class,
+    })
+    

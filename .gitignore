@@ -24,3 +24,6 @@ fashion_retrieval/images/*
 
 # ignore PyCharm project configs
 .idea/*
+
+# reading
+chatbot/try_interactive.py
