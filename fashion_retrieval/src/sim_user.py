@@ -27,12 +27,12 @@ class SynUser:
         self.vocabSize = self.captioner_relative.get_vocab_size()
 
         # load pre-computed data rep.
-        fc = torch.from_numpy(np.load('features/fc_feature.npz')['arr_0'])
-        att = torch.from_numpy(np.load('features/att_feature.npz')['arr_0'])
-        self.NUM_OBS = att.size(0)
+        self.fc = torch.from_numpy(np.load('features/fc_feature.npz')['arr_0']).to(self.device)
+        self.att = torch.from_numpy(np.load('features/att_feature.npz')['arr_0']).to(self.device)
+        self.NUM_OBS = self.att.size(0)
         print('Data loading completed')
-        print('fc.size', fc.size())
-        print('att.size', att.size())
+        print('fc.size', self.fc.size())
+        print('att.size', self.att.size())
 
         # split index
         idx = torch.randperm(self.NUM_OBS)
@@ -40,19 +40,13 @@ class SynUser:
         self.NUM_TEST = self.NUM_OBS - self.NUM_TRAIN
         self.train_idx = idx[:self.NUM_TRAIN]
         self.test_idx = idx[self.NUM_TRAIN:]
-        # train
-        self.train_fc_input = fc[:self.NUM_TRAIN]
-        self.train_att_input = att[:self.NUM_TRAIN]
-        # test
-        self.test_fc_input = fc[self.NUM_TRAIN:]
-        self.test_att_input = att[self.NUM_TRAIN:]
 
         absolute_feature = pickle.load(open('features/256embedding.p', 'rb'))
-        self.train_feature = torch.tensor(absolute_feature['train'], dtype=torch.float)
-        self.test_feature = torch.tensor(absolute_feature['test'], dtype=torch.float)
+        self.train_feature = torch.tensor(absolute_feature['train'], dtype=torch.float, device=self.device)
+        self.test_feature = torch.tensor(absolute_feature['test'], dtype=torch.float, device=self.device)
 
-        self.train_index = torch.arange(0, self.train_fc_input.size(0), dtype=torch.long)
-        self.test_index = torch.arange(0, self.test_fc_input.size(0), dtype=torch.long)
+        self.train_index = torch.arange(0, self.NUM_TRAIN, dtype=torch.long)
+        self.test_index = torch.arange(0, self.NUM_TEST, dtype=torch.long)
 
         print(f'Syn User init. done!\n'
               f'# Train Images: {self.NUM_TRAIN}\n'
@@ -60,7 +54,7 @@ class SynUser:
               f'Using device: {self.device}')
         return
 
-    def sample_idx(self, img_idx: torch.LongTensor, train_mode: bool) -> None:
+    def sample_idx(self, img_idx: torch.Tensor, train_mode: bool) -> None:
         """
         change the value in "img_idx" with value from 0 ~ NUM_TRAIN-1 randomly
 
@@ -73,8 +67,8 @@ class SynUser:
         return
 
     def get_feedback(self,
-                     act_idx: torch.LongTensor,
-                     user_idx: torch.LongTensor,
+                     act_idx: torch.Tensor,
+                     user_idx: torch.Tensor,
                      train_mode: bool = True) -> torch.Tensor:
         """
         get the text feedback describing difference between proposed image and ground truth image
@@ -89,18 +83,15 @@ class SynUser:
         :return: size(N, 16) padded sequence, value is index
         """
 
-        fc = self.train_fc_input if train_mode else self.test_fc_input
-        att = self.train_att_input if train_mode else self.test_att_input
-
-        act_fc = fc[act_idx].to(self.device)
-        act_att = att[act_idx].to(self.device)
-        user_fc = fc[user_idx].to(self.device)
-        user_att = att[user_idx].to(self.device)
+        act_fc = self.fc[act_idx + (0 if train_mode else self.NUM_TRAIN)]
+        act_att = self.att[act_idx + (0 if train_mode else self.NUM_TRAIN)]
+        user_fc = self.fc[user_idx + (0 if train_mode else self.NUM_TRAIN)]
+        user_att = self.att[user_idx + (0 if train_mode else self.NUM_TRAIN)]
 
         with torch.no_grad():
             seq_label, sents_label = \
                 self.captioner_relative.gen_caption_from_feat((user_fc, user_att), (act_fc, act_att))
 
-        res = torch.zeros(seq_label.size(0), 16, dtype=torch.long)
+        res = torch.zeros(seq_label.size(0), 16, dtype=torch.long, device=self.device)
         res[:, :seq_label.size(1)].copy_(seq_label)
         return res

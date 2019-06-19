@@ -93,14 +93,13 @@ class Captioner():
         else:
             model.load_state_dict(torch.load(opt.model, map_location={'cuda:0': 'cpu'}))
 
+        print(f"Captioner is using device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
         model.eval()
 
         self.is_relative = is_relative
         self.model = model
         self.vocab = vocab
         self.opt = vars(opt)
-
-
 
         if opt.load_resnet:
             net = getattr(resnet, image_feat_params['model'])()
