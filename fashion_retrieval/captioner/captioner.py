@@ -138,7 +138,6 @@ class Captioner():
 
         return seq, sents
 
-
     def gen_caption_from_feat(self, feat_target, feat_reference= None):
         if self.is_relative and feat_reference == None:
             return None, None

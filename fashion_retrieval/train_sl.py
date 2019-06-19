@@ -104,7 +104,7 @@ def train_val_epoch(train: bool):
             optimizer_encoder.zero_grad()
             optimizer_tracker.zero_grad()
             mean_loss = torch.stack(outs).mean()
-            mean_loss.backward()
+            mean_loss.backward(retain_graph=True)
             optimizer_encoder.step()
             optimizer_tracker.step()
 
