@@ -9,7 +9,7 @@ CONDA := $(MINI_BIN)/conda
 PIP := $(MINI_BIN)/pip
 PYTHON := $(MINI_BIN)/python
 UWSGI := $(MINI_BIN)/uwsgi
-RSYNC_EXCLUDE_LIST = *.git* *__pycache__* *.sqlite3* static/*
+RSYNC_EXCLUDE_LIST = *.git* *__pycache__* *.sqlite3* *static/*
 RSYNC_EXCLUDE := $(RSYNC_EXCLUDE_LIST:%=--exclude="%")
 linux7:
 	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
@@ -17,7 +17,7 @@ linux7:
 linux7_full:
 	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
 linux7_static:
-	rsync -avzh ../$(PROJECT)/static/ $(HOST):$(HOST_PROJECT)/static/
+	rsync -avzh ../$(PROJECT)/static/ $(HOST):$(HOST_PROJECT)static/
 
 FORWARDER = /Users/qtwu/Drive/Active/forwarder
 forwarder_auto forwarder_sync_adl forwarder_sync_heroku forwarder_hang_heroku_log: forwarder_%:
