@@ -9,7 +9,7 @@ class TripletLossIP(nn.Module):
 
     def forward(self, anchor, positive, negative, average=True):
         dist = torch.sum(
-                (anchor - positive) ** 2 - (anchor - negative) ** 2 ,
+                (anchor - positive) ** 2 - (anchor - negative) ** 2,
                 dim=1) + self.margin
         dist_hinge = torch.clamp(dist, min=0.0)
         if average:

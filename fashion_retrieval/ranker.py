@@ -11,9 +11,10 @@ class Ranker:
 
         for start in range(0, input.size(0), batch_size):
             end = start + batch_size
-            x = input[start: end].to(self.device)
+            x = input[start: end]
             out = model.forward_image(x)
             self.feat[start: end].copy_(out.data)
+        self.feat.to(self.device)
 
     def compute_rank(self, input, target_idx):
         """
@@ -21,13 +22,13 @@ class Ranker:
         :param input: size(N,) proposed indexes of images
         :param target_idx: size(N,) groud truth indexes of images
         :return: rank[i] = number of images (all images) farther than
-                 the distance bwtween input[i] and its ground truth (img index is target_idx[i])
+                 the distance between input[i] and its ground truth (img index is target_idx[i])
         """
         # input <---- a batch of vectors
         # targetIdx <----- ground truth index
         # return rank of input vectors in terms of rankings in distance to the ground truth
 
-        target_idx = target_idx.to(self.device)
+        # target_idx = target_idx.to(self.device)
         target = self.feat[target_idx]
 
         value = torch.pow(target - input, 2).sum(1)

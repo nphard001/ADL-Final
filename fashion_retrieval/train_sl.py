@@ -39,131 +39,69 @@ def parse_args():
                         help='dialog turns for training')
     parser.add_argument('--test-turns', type=int, default=5,
                         help='dialog turns for testing')
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
-def train_sl():
-    print('train epoch #{}'.format(epoch))
-    model.train()
-    triplet_loss.train()
-    exp_monitor_candidate = ExpMonitor(args, user, train_mode=True)
-    # train / test
-    all_input = user.train_feature
-    dialog_turns = args.train_turns
+def train_val_epoch(train: bool):
+    print(('Train' if train else 'Eval') + f'\tepoch #{epoch}')
+    model.train(train)
 
-    user_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    act_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    neg_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    num_batches = math.ceil(all_input.size(0) / args.batch_size)
+    exp_monitor_candidate = ExpMonitor(args, user, train_mode=train)
+    img_features = user.train_feature.to(device) if train else user.test_feature.to(device)
+    dialog_turns = args.train_turns if train else args.test_turns
+
+    target_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+    candidate_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+    false_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+    num_batches = math.ceil(img_features.size(0) / args.batch_size)
+
+    if not train:
+        ranker.update_rep(model, img_features)
 
     for batch_idx in range(1, num_batches + 1):
         # sample target images and first turn feedback images
-        user.sample_idx(user_img_idx, train_mode=True)
-        user.sample_idx(act_img_idx, train_mode=True)
+        user.sample_idx(target_img_idx, train_mode=train)
+        user.sample_idx(candidate_img_idx, train_mode=train)
 
-        ranker.update_rep(model, all_input)
+        if train:
+            ranker.update_rep(model, img_features)
+
         model.init_hid(args.batch_size)
         if torch.cuda.is_available():
             model.hx = model.hx.cuda()
         outs = []
-
-        act_input = all_input[act_img_idx].to(device)
-        act_emb = model.forward_image(act_input)
 
         # start dialog
         for k in range(dialog_turns):
+            candidate_img_feat = ranker.feat[candidate_img_idx].to(device)
+            user.sample_idx(false_img_idx, train_mode=train)
+            target_img_feat = ranker.feat[target_img_idx].to(device)
+            false_img_feat = ranker.feat[false_img_idx].to(device)
+
             # get relative captions from user model given user target images and feedback images
-            txt_input = user.get_feedback(act_idx=act_img_idx, user_idx=user_img_idx, train_mode=True).to(device)
-            # txt_input = Variable(txt_input)
-
-            # update the query action vector given feedback image and text feedback in this turn
-            action = model.merge_forward(act_emb, txt_input)
+            relative_text_feedback = user.get_feedback(act_idx=candidate_img_idx,
+                                                       user_idx=target_img_idx, train_mode=train).to(device)
+            # encode the response representation and update history representation
+            history_representation = model.merge_forward(candidate_img_feat, relative_text_feedback)
             # obtain the next turn's feedback images
-            act_img_idx = ranker.nearest_neighbor(action.data)
+            candidate_img_idx = ranker.nearest_neighbor(history_representation.detach())
 
-            # sample negative images for triplet loss
-            user.sample_idx(neg_img_idx, train_mode=True)
-
-            user_input = all_input[user_img_idx].to(device)
-            neg_input = all_input[neg_img_idx].to(device)
-            new_act_input = all_input[act_img_idx].to(device)
-            # user_input, neg_input, new_act_input = Variable(user_input), Variable(neg_input), Variable(new_act_input)
-
-            new_act_emb = model.forward_image(new_act_input)
             # ranking and loss
-            ranking_candidate = ranker.compute_rank(action.data, user_img_idx)
-            user_emb = model.forward_image(user_input)
-            neg_emb = model.forward_image(neg_input)
-            loss = triplet_loss.forward(action, user_emb, neg_emb)
+            ranking_candidate = ranker.compute_rank(history_representation.detach(), target_img_idx)
+
+            loss = triplet_loss.forward(history_representation, target_img_feat, false_img_feat)
 
             outs.append(loss)
-            act_emb = new_act_emb
             # log
-            exp_monitor_candidate.log_step(ranking_candidate, loss.detach(), user_img_idx, neg_img_idx, act_img_idx, k)
+            exp_monitor_candidate.log_step(ranking_candidate, loss.detach(),
+                                           target_img_idx, false_img_idx, candidate_img_idx, k)
 
-        # finish dialog and update model parameters
-        optimizer.zero_grad()
-        outs = torch.stack(outs).mean()
-        outs.backward()
-        optimizer.step()
-
-        if batch_idx % args.log_interval == 0:
-            exp_monitor_candidate.print_interval(epoch, batch_idx, num_batches)
-    exp_monitor_candidate.print_all(epoch)
-
-
-def eval():
-    print('eval epoch #{}'.format(epoch))
-    model.eval()
-    triplet_loss.eval()
-    exp_monitor_candidate = ExpMonitor(args, user, train_mode=False)
-    # train / test
-    all_input = user.test_feature
-    dialog_turns = args.test_turns
-
-    user_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    act_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    neg_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    num_batches = math.ceil(all_input.size(0) / args.batch_size)
-
-    ranker.update_rep(model, all_input)
-    for batch_idx in range(1, num_batches + 1):
-        # sample data index
-        user.sample_idx(user_img_idx,  train_mode=False)
-        user.sample_idx(act_img_idx, train_mode=False)
-
-        model.init_hid(args.batch_size)
-        if torch.cuda.is_available():
-            model.hx = model.hx.cuda()
-
-        outs = []
-
-        act_input = all_input[act_img_idx].to(device)
-        act_emb = model.forward_image(act_input)
-
-        for k in range(dialog_turns):
-            txt_input = user.get_feedback(act_idx=act_img_idx, user_idx=user_img_idx, train_mode=False).to(device)
-            user.sample_idx(neg_img_idx, train_mode=False)
-
-            action = model.merge_forward(act_emb, txt_input)
-            act_img_idx = ranker.nearest_neighbor(action.data)
-            user_input = all_input[user_img_idx].to(device)
-            neg_input = all_input[neg_img_idx].to(device)
-            new_act_input = all_input[act_img_idx].to(device)
-            new_act_emb = model.forward_image(new_act_input)
-
-            ranking_candidate = ranker.compute_rank(action.data, user_img_idx)
-            user_emb = model.forward_image(user_input)
-            neg_emb = model.forward_image(neg_input)
-            loss = triplet_loss.forward(action, user_emb, neg_emb)
-
-            outs.append(loss)
-            act_emb = new_act_emb
-
-            # log
-            exp_monitor_candidate.log_step(ranking_candidate, loss.detach(), user_img_idx, neg_img_idx, act_img_idx, k)
+        if train:
+            # finish dialog and update model parameters
+            optimizer.zero_grad()
+            mean_loss = torch.stack(outs).mean()
+            mean_loss.backward()
+            optimizer.step()
 
         if batch_idx % args.log_interval == 0:
             exp_monitor_candidate.print_interval(epoch, batch_idx, num_batches)
@@ -179,6 +117,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(args.seed)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Using device: {device}")
 
         user = SynUser()
         ranker = Ranker()
@@ -188,7 +127,7 @@ if __name__ == '__main__':
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
 
         for epoch in range(1, args.epochs + 1):
-            train_sl()
+            train_val_epoch(train=True)
             with torch.no_grad():
-                eval()
+                train_val_epoch(train=False)
             torch.save(model.state_dict(), (args.model_folder+'sl-{}.pt').format(epoch))

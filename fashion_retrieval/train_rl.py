@@ -49,10 +49,7 @@ def parse_args():
                         help='dialog turns for training')
     parser.add_argument('--test-turns', type=int, default=5,
                         help='dialog turns for testing')
-
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_idx, all_input):
