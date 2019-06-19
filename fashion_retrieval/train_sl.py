@@ -50,9 +50,9 @@ def train_val_epoch(train: bool):
     img_features = user.train_feature.to(device) if train else user.test_feature.to(device)
     dialog_turns = args.train_turns if train else args.test_turns
 
-    target_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    candidate_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    false_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+    target_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    candidate_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    false_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
     num_batches = math.ceil(img_features.size(0) / args.batch_size)
 
     if not train:
@@ -67,10 +67,10 @@ def train_val_epoch(train: bool):
             ranker.update_rep(model, img_features)
 
         model.init_hid(args.batch_size)
-        if torch.cuda.is_available():
-            model.hx = model.hx.cuda()
+
         outs = []
 
+        history_representation = None
         # start dialog
         for k in range(dialog_turns):
             candidate_img_feat = ranker.feat[candidate_img_idx].to(device)
@@ -79,10 +79,11 @@ def train_val_epoch(train: bool):
             false_img_feat = ranker.feat[false_img_idx].to(device)
 
             # get relative captions from user model given user target images and feedback images
-            relative_text_feedback = user.get_feedback(act_idx=candidate_img_idx,
-                                                       user_idx=target_img_idx, train_mode=train).to(device)
+            relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
+                                                  user_idx=target_img_idx, train_mode=train).to(device)
             # encode the response representation and update history representation
-            history_representation = model.merge_forward(candidate_img_feat, relative_text_feedback)
+            history_representation = model.merge_forward(candidate_img_feat, relative_text_idx,
+                                                         history_representation)
             # obtain the next turn's feedback images
             candidate_img_idx = ranker.nearest_neighbor(history_representation.detach())
 
@@ -130,4 +131,4 @@ if __name__ == '__main__':
             train_val_epoch(train=True)
             with torch.no_grad():
                 train_val_epoch(train=False)
-            torch.save(model.state_dict(), (args.model_folder+'sl-{}.pt').format(epoch))
+            torch.save(model.state_dict(), (args.model_folder + 'sl-{}.pt').format(epoch))

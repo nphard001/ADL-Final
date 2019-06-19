@@ -124,72 +124,79 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
     return act_opt, reg + loss
 
 
-def train_rl(epoch):
-    behavior_model.set_rl_mode()
-    target_model.eval()
-    triplet_loss.train()
-    exp_monitor_candidate = ExpMonitor(args, user, train_mode=True)
-    # train / test
-    all_input = user.train_feature
-    dialog_turns = args.train_turns
-    #
-    user_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    act_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+def train_rl(epoch, train: bool):
+    print(('Train' if train else 'eval') + f'epoch #{epoch}')
+    if train:
+        behavior_model.set_rl_mode()
+        target_model.eval()
+    else:
+        behavior_model.eval()
+
+    exp_monitor_candidate = ExpMonitor(args, user, train_mode=train)
+
+    img_features = user.train_feature if train else user.test_feature
+    dialog_turns = args.train_turns if train else args.test_turns
+
+    target_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    candidate_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    false_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+
+    ######################
+    ranker.update_rep(target_model, img_features)
+    ######################
 
     # update ranker
-    ranker.update_rep(target_model, all_input)
-    num_epoch = math.ceil(all_input.size(0) / args.batch_size)
+    num_epoch = math.ceil(img_features.size(0) / args.batch_size)
 
     for batch_idx in range(1, num_epoch + 1):
         # sample data index
-        user.sample_idx(user_img_idx, train_mode=True)
-        user.sample_idx(act_img_idx, train_mode=True)
+        user.sample_idx(target_img_idx, train_mode=train)
+        user.sample_idx(candidate_img_idx, train_mode=train)
 
-        target_model.init_hid(args.batch_size)
         behavior_model.init_hid(args.batch_size)
-        if torch.cuda.is_available():
-            target_model.hx = target_model.hx.cuda()
-            behavior_model.hx = behavior_model.hx.cuda()
+        if train:
+            target_model.init_hid(args.batch_size)
+
+        ######################
+        ranker.update_rep(target_model, img_features)
+        ######################
+
+
+
 
         loss_sum = 0
         for k in range(dialog_turns):
             # construct data
-            txt_input = user.get_feedback(act_idx=act_img_idx.cpu(), user_idx=user_img_idx.cpu(), train_mode=True)
-            if torch.cuda.is_available():
-                txt_input = txt_input.cuda()
+            relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
+                                                  user_idx=target_img_idx, train_mode=train)
 
-            # update model part
-            if torch.cuda.is_available():
-                act_img_idx = act_img_idx.cuda()
-            act_emb = ranker.feat[act_img_idx]
-            behavior_state = behavior_model.merge_forward(act_emb, txt_input)
-
-            # update base model part
+            candidate_img_feat = ranker.feat[candidate_img_idx]
+            behavior_hist_rep = behavior_model.merge_forward(candidate_img_feat, relative_text_idx)
             with torch.no_grad():
-                target_state = target_model.merge_forward(act_emb, txt_input)
+                target_hist_rep = target_model.merge_forward(candidate_img_feat, relative_text_idx)
 
-            ranking_candidate = ranker.compute_rank(behavior_state.data, user_img_idx)
+            ranking_candidate = ranker.compute_rank(behavior_hist_rep.detach(), target_img_idx)
 
-            act_img_idx_mc, loss = rollout_search(behavior_state, target_state, k,
-                                                  dialog_turns, user_img_idx, all_input)
+            act_img_idx_mc, loss = rollout_search(behavior_hist_rep, target_hist_rep, k,
+                                                  dialog_turns, target_img_idx, img_features)
 
             loss_sum = loss + loss_sum
 
-            act_img_idx.copy_(act_img_idx_mc)
+            candidate_img_idx.copy_(act_img_idx_mc)
 
-            exp_monitor_candidate.log_step(ranking_candidate, loss.detach(), user_img_idx, act_img_idx, k)
+            exp_monitor_candidate.log_step(ranking_candidate, loss.detach(), target_img_idx, candidate_img_idx, k)
 
-        optimizer.zero_grad()
-        loss_sum.backward()
-        optimizer.step()
+        if train:
+            optimizer.zero_grad()
+            loss_sum.backward()
+            optimizer.step()
 
-        if batch_idx % args.log_interval == 0:
+        if batch_idx % args.log_interval == 0 and train:
             print('# candidate ranking #')
             exp_monitor_candidate.print_interval(epoch, batch_idx, num_epoch)
 
     print('# candidate ranking #')
     exp_monitor_candidate.print_all(epoch)
-    return
 
 
 def eval(epoch):
@@ -203,9 +210,9 @@ def eval(epoch):
 
     exp_monitor_candidate = ExpMonitor(args, user, train_mode=train_mode)
 
-    user_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    act_img_idx = torch.empty(args.batch_size, dtype=torch.long)
-    neg_img_idx = torch.empty(args.batch_size, dtype=torch.long)
+    user_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    act_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
+    neg_img_idx = torch.empty(args.batch_size, dtype=torch.long, device=device)
     num_epoch = math.ceil(all_input.size(0) / args.batch_size)
 
     ranker.update_rep(behavior_model, all_input)
@@ -216,30 +223,21 @@ def eval(epoch):
         user.sample_idx(act_img_idx, train_mode=train_mode)
 
         behavior_model.init_hid(args.batch_size)
-        if torch.cuda.is_available():
-            behavior_model.hx = behavior_model.hx.cuda()
 
-        if torch.cuda.is_available():
-            act_img_idx = act_img_idx.cuda()
         act_emb = ranker.feat[act_img_idx]
 
         for k in range(dialog_turns):
-            txt_input = user.get_feedback(act_idx=act_img_idx.cpu(),
-                                          user_idx=user_img_idx.cpu(),
+            txt_input = user.get_feedback(act_idx=act_img_idx,
+                                          user_idx=user_img_idx,
                                           train_mode=train_mode).to(device)
 
             action = behavior_model.merge_forward(act_emb, txt_input)
-            act_img_idx = ranker.nearest_neighbor(action.data)
+            act_img_idx = ranker.nearest_neighbor(action.detach())
 
             user.sample_idx(neg_img_idx, train_mode=train_mode)
-            if torch.cuda.is_available():
-                user_img_idx = user_img_idx.cuda()
-                neg_img_idx = neg_img_idx.cuda()
-                act_img_idx = act_img_idx.cuda()
 
             user_emb = ranker.feat[user_img_idx]
             neg_emb = ranker.feat[neg_img_idx]
-
             new_act_emb = ranker.feat[act_img_idx]
 
             ranking_candidate = ranker.compute_rank(action.data, user_img_idx)
@@ -275,15 +273,15 @@ if __name__ == '__main__':
 
         optimizer = optim.Adam(behavior_model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-8)
 
-        user_img_idx_ = torch.empty(args.batch_size, dtype=torch.long)
-        act_img_idx_ = torch.empty(args.batch_size, dtype=torch.long)
-        user.sample_idx(user_img_idx_, train_mode=True)
-        user.sample_idx(act_img_idx_, train_mode=True)
+        # user_img_idx_ = torch.empty(args.batch_size, dtype=torch.long)
+        # act_img_idx_ = torch.empty(args.batch_size, dtype=torch.long)
+        # user.sample_idx(user_img_idx_, train_mode=True)
+        # user.sample_idx(act_img_idx_, train_mode=True)
 
         for epoch in range(20):
             with torch.no_grad():
                 eval(epoch)
-            train_rl(epoch)
+            train_rl(epoch, train=True)
             torch.save(behavior_model.state_dict(), (args.model_folder+'rl-{}.pt').format(epoch))
 
         with torch.no_grad:

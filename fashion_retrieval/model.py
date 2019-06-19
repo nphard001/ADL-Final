@@ -50,9 +50,18 @@ class NetSynUser(nn.Module):
         x = self.head(self.hx)
         return x
 
-    def merge_forward(self, img_emb, txt_input):
+    def merge_forward(self, img_emb, txt_input, history_rep):
         x2 = self.forward_text(txt_input)
         x = img_emb + x2
+        # x shape: N, M
+        # x[0]:
+        # history_rep: size(N, k-1, M) if k==0 histroy_rep = None
+        # so your transformer encoder input size would be (N, k, M)
+        if history_rep is not None:
+            history_rep = torch.cat(history_rep, x.unsqueeze(1), 1)
+        else:
+            pass
+
         x = self.fc_joint(x)
         self.hx = self.rnn(x, self.hx)
         x = self.head(self.hx)
@@ -106,7 +115,7 @@ class ResponseEncoder(nn.Module):
 
 
 class StateTracker(nn.Module):
-    def __init__(self, hid_dim=256):
+    def __init__(self, input_dim, hid_dim=256):
         super(StateTracker, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.hid_dim = hid_dim
@@ -115,7 +124,22 @@ class StateTracker(nn.Module):
         self.rnn = nn.GRUCell(hid_dim, hid_dim, bias=False)
         self.head = nn.Linear(in_features=hid_dim, out_features=hid_dim, bias=False)
 
-    def forward(self, response_rep):
+        self.output_shape = (N, 256)
+
+    def forward(self, pre_rep, response_rep):
+        """
+
+        :pre_rep size(N, timestep-1, input_dim)
+        :param response_rep: size(N, input_dim)
+        :return:
+        """
+
+        """
+        concat(res_rep_0 ~ res_rep_i) -> shape N, i, input_dim
+        
+        Transformer input szie N, seq_len, input_dim
+        
+        """
         x = self.fc_joint(response_rep)
         self.hx = self.rnn(x, self.hx)
         x = self.head(self.hx)
@@ -123,3 +147,4 @@ class StateTracker(nn.Module):
 
     def init_hid(self, batch_size):
         self.hx = torch.zeros(batch_size, self.hid_dim, device=self.device)
+

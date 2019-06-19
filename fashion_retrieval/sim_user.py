@@ -92,6 +92,6 @@ class SynUser:
             seq_label, sents_label = \
                 self.captioner_relative.gen_caption_from_feat((user_fc, user_att), (act_fc, act_att))
 
-        res = torch.zeros(seq_label.size(0), 16, dtype=torch.long)
+        res = torch.zeros(seq_label.size(0), 16, dtype=torch.long, device=self.device)
         res[:, :seq_label.size(1)].copy_(seq_label)
         return res
