@@ -12,6 +12,7 @@ class UserProfile(BaseModel):
     username = models.TextField(default='None', db_index=True)
     line_userId = models.TextField(default='None', db_index=True)
     mode = models.TextField(default='auto', db_index=True) # auto / debug
+    pk_last_pending = models.IntegerField(default=0, db_index=True)
 
 class UserEvent(BaseModel):
     created = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -43,4 +44,40 @@ class UserEvent(BaseModel):
             UserProfile(line_userId=lineID).save()
         return obj
 
+def GetUserDialog(line_userId: str):
+    r'''token=None means all done'''
+    object_set = UserEvent.objects
+    object_set = object_set.filter(line_userId=line_userId)
+    object_set = object_set.filter(line_type='message')
+    text_list = []
+    ent_last_pending = None
+    token = None
+    for evt_object in object_set.order_by('created'):
+        txt = evt_object.line_text
+        if type(txt) != type('text msg'):
+            continue
+        if evt_object.state=='pending':
+            ent_last_pending = evt_object
+        if evt_object.state=='done':
+            # first get 'done' msg only
+            text_list.append(txt)
+            
+            # valid pending should after the "done" one
+            ent_last_pending = None
+    if type(ent_last_pending) != type(None):
+        text_list.append(ent_last_pending.line_text)
+        token = ent_last_pending.line_replyToken
+        
+        # record last pending pk
+        user = UserProfile.objects.get(line_userId=line_userId)
+        user.pk_last_pending = ent_last_pending.id
+        user.save()
+        
+    return text_list, token
 
+def GetTokenUpdateUserDone(line_userId: str):
+    user = UserProfile.objects.get(line_userId=line_userId)
+    event = UserEvent.objects.get(pk=user.pk_last_pending)
+    event.state = 'done'
+    event.save()
+    return event.line_replyToken

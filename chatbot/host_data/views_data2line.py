@@ -1,10 +1,48 @@
 from host_data.views import *
-from host_data.models import UserEvent, UserProfile
+from host_data.models import *
+from nphard001.api import *
 def _ApplyURLPatterns():
     urlpatterns.append(path(r'line_event', line_event_view))
     urlpatterns.append(path(r'user_text', user_text_view))
-    urlpatterns.append(path(r'polling', polling_view))
+    urlpatterns.append(path(r'pending_list', pending_list_view))
+    urlpatterns.append(path(r'reply_index', reply_index_view))
 # ================================================================
+@csrf_exempt
+def reply_index_view(request):
+    json_body = json.loads(request.body.decode('utf-8'))
+    line_userId = json_body['line_userId']
+    img_idx = json_body['img_idx']
+    token = GetTokenUpdateUserDone(line_userId)
+    tosend = {
+        'type': 'text',
+        'reply_token': token,
+        'text': f'train_im index={img_idx}',
+    }
+    r = HTTPJson('https://nphard001.herokuapp.com/line/reply', tosend)
+    return JsonResponse({
+        'state': 'done' if r.status_code==200 else 'fail',
+        'status_code': r.status_code,
+        'reason': r.reason,
+    }, safe=False)
+
+@csrf_exempt
+def pending_list_view(request):
+    json_body = json.loads(request.body.decode('utf-8'))
+    pending_list = []
+    line_userId = json_body['line_userId'] # INDEV call
+    text_list, token = GetUserDialog(line_userId)
+    if token:
+        pending_list.append({
+            'line_userId': line_userId,
+            'text_list': text_list,
+            'token': token,
+        })
+    return JsonResponse({
+        'state': 'done',
+        'pending_list': pending_list,
+    }, safe=False)
+
+
 @csrf_exempt
 def line_event_view(request):
     json_body = json.loads(request.body.decode('utf-8'))
