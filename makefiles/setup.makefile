@@ -14,9 +14,11 @@ setup_touch_init:
 	touch fashion_retrieval/captioner/neuraltalk2/__init__.py
 
 setup_symlink_chatbot:
-	-ln -s ../nphard001/ chatbot/nphard001
-	-ln -s ../fashion_retrieval/ chatbot/fashion_retrieval
-	-ln -s ../fashion_retrieval_old/ chatbot/fashion_retrieval_old
+	test ls chatbot/nphard001 || ln -s ../nphard001/ chatbot/nphard001
+	test ls fashion_retrieval/nphard001/ || ln -s ../nphard001/ fashion_retrieval/nphard001/
+	test ls fashion_retrieval_old/nphard001/ || ln -s ../nphard001/ fashion_retrieval_old/nphard001/
+	test ls chatbot/fashion_retrieval/ || ln -s ../fashion_retrieval/ chatbot/fashion_retrieval/
+	test ls chatbot/fashion_retrieval_old/ || ln -s ../fashion_retrieval_old/ chatbot/fashion_retrieval_old/
 	tree -d chatbot
 	
 setup_symlink_static_model_fashion_retrieval_old: setup_symlink_static_model_%:
