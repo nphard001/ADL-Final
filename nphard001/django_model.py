@@ -8,7 +8,7 @@ class BaseModel(models.Model):
     def to_dict(self):
         return model_to_dict(self)
     def __str__(self):
-        return json.dumps(model_to_dict(self), indent=1)
+        return json.dumps(model_to_dict(self), indent=1, default=lambda *args: 'JSON_FAIL')
     def __repr__(self):
-        return json.dumps(model_to_dict(self))
+        return json.dumps(model_to_dict(self), default=lambda *args: 'JSON_FAIL')
 
