@@ -12,8 +12,13 @@ UWSGI := $(MINI_BIN)/uwsgi
 RSYNC_EXCLUDE_LIST = *.git* *__pycache__* *.sqlite3* *static/*
 RSYNC_EXCLUDE := $(RSYNC_EXCLUDE_LIST:%=--exclude="%")
 linux7:
+	$(MAKE) linux7_routine
+linux7_routine:
 	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
 	ssh linux7 "cd $(HOST_PROJECT) && make chatbot_touch_ini"
+linux7_migrate:
+	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
+	ssh linux7 "cd $(HOST_PROJECT) && make migrate_host_data && make chatbot_touch_ini"
 linux7_full:
 	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
 linux7_static:
