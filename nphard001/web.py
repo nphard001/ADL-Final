@@ -92,4 +92,3 @@ def HTMLImageTable(object_list: list, num_each_row: int=8, grid_class: str='rand
         'num_each_row': num_each_row,
         'grid_class': grid_class,
     })
-    

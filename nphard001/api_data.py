@@ -1,3 +1,4 @@
+import os, sys, json
 import requests
 import warnings
 from typing import Optional, Dict
@@ -220,3 +221,34 @@ def get_metadata_static_dict():
       "max_id": 1141
      }
     }
+
+def get_category_static_list():
+    return [
+    "bags_backpacks",
+    "bags_clutch",
+    "bags_evening",
+    "bags_hobo",
+    "bags_shoulder",
+    "bags_totes",
+    "bags_wristlet",
+    "earrings_chandelier",
+    "earrings_diamond_studs",
+    "earrings_drop",
+    "earrings_hoops",
+    "earrings_pearl",
+    "earrings_studs",
+    "ties_bow",
+    "ties_plaid",
+    "ties_silk",
+    "ties_striped",
+    "womens_athletic_shoes",
+    "womens_boots",
+    "womens_clogs",
+    "womens_flats",
+    "womens_high_heels",
+    "womens_pumps",
+    "womens_rain_boots",
+    "womens_sneakers",
+    "womens_stiletto",
+    "womens_wedding_shoes"
+    ]

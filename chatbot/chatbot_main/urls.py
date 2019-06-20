@@ -18,6 +18,9 @@ from django.urls import path
 from django.conf.urls import url, include
 import chatbot_main.view_basic
 import chatbot_main.view_api
+import host_data.views
+import host_data.views_predict
+import host_data.views_data2line
 
 urlpatterns = [
     path(r'admin/', admin.site.urls),

@@ -18,7 +18,7 @@ def _ApplyURLPatterns():
 @csrf_exempt
 def random_view(request, N=18, M=3):
     object_list = []
-    api = HostData()
+    api = HostDataAPI()
     meta = api.get_metadata()
     ctg = 'womens_high_heels'
     for x in np.random.choice(list(range(1, 1670+1)), size=N):
@@ -26,7 +26,7 @@ def random_view(request, N=18, M=3):
         img = api.get_jpg(ctg, img_id)
         object_list.append([
             f'https://linux7.csie.org:3721/data/image/raw/{ctg}/{img_id}', 
-            api.get_txt(ctg, img_id)['target']])
+            api.get_txt(ctg, img_id)])
     
     # ---
     title = 'random_view'
