@@ -1,6 +1,7 @@
 from __future__ import print_function
 import torch
 import torch.nn as nn
+from src.encoder_layers import FeedForward,Norm,PositionalEncoder,EncoderLayer,Encoder
 from pytorch_pretrained_bert import BertTokenizer, BertModel
 from src.bert_util import InputFeatures, convert_examples_to_features
 import pdb
@@ -82,48 +83,60 @@ class ResponseEncoder(nn.Module):
 
 
 class StateTracker(nn.Module):
-    def __init__(self, input_dim, hid_dim, out_dim):
+    def __init__(self, input_dim, hid_dim, out_dim,N=3,num_heads=8):
         super(StateTracker, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.input_dim = input_dim
         self.hid_dim = hid_dim
         self.out_dim = out_dim
-
-        self.fc_joint = nn.Linear(self.input_dim, self.hid_dim, bias=False)
-        self.rnn = nn.GRUCell(self.hid_dim, self.hid_dim, bias=False)
-        self.head = nn.Linear(self.hid_dim, self.out_dim, bias=False)
+        self.N = N
+        self.num_heads = num_heads
+        # self.fc_joint = nn.Linear(self.input_dim, self.hid_dim, bias=False)
+        # self.rnn = nn.GRUCell(self.hid_dim, self.hid_dim, bias=False)
+        # self.head = nn.Linear(self.hid_dim, self.out_dim, bias=False)
         self.history_rep = None
+
+        self.encoder= Encoder(self.input_dim,self.N,self.num_heads)
 
     def forward(self, response_rep, history_rep=None):
         """
-        
+
         :param response_rep: N, M
         :param history_rep: N, k-1, M  if k==0 history_rep = None
-        :return: 
+        :return:
+                :current_state: N, k , M
+                :history_rep: N, k , M
         """"""
         concat(res_rep_0 ~ res_rep_i) -> shape N, i, input_dim
-        
+
         Transformer input szie N, seq_len, input_dim
-        
+
         """
         # x shape: N, M
         # x[0]:
-        # history_rep: size(N, k-1, M) if k==0 histroy_rep = None
+        # history_rep: size(N, k-1, M) if k==0 history_rep = None
         # so your transformer encoder input size would be (N, k, M)
 
-        # if history_rep is not None:
-        #     history_rep = torch.cat((history_rep, x.unsqueeze(1)), 1)
-        # else:
-        #     pass
-
-        x = self.fc_joint(response_rep)
-        if history_rep is None:
-            if self.history_rep is None:
-                self.history_rep = self.rnn(x)
-            else:
-                self.history_rep = self.rnn(x, self.history_rep)
+        if history_rep is not None:
+            history_rep = torch.cat((history_rep, response_rep.unsqueeze(1)), 1)
         else:
-            self.history_rep = self.rnn(x, history_rep)
-        x = self.head(self.history_rep)
-        return x, self.history_rep
+            history_rep = response_rep.unsqueeze(1)
 
+        x = history_rep.permute(1,0,2)  # seq_len , N , input_dim
+
+        x = self.encoder(x)
+        x = torch.max(x,1)[1].squeeze()
+
+        # =============== old rnn =====================
+        # x = self.fc_joint(response_rep)
+        # if history_rep is None:
+        #     if self.history_rep is None:
+        #         self.history_rep = self.rnn(x)
+        #     else:
+        #         self.history_rep = self.rnn(x, self.history_rep)
+        # else:
+        #     self.history_rep = self.rnn(x, history_rep)
+        # x = self.head(self.history_rep)
+        # =============================================
+
+        return m, self.history_rep
