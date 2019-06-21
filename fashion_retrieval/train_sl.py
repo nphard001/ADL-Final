@@ -14,7 +14,7 @@ from src.model import ResponseEncoder, StateTracker
 from src.monitor import ExpMonitorSl as ExpMonitor
 from src.ranker import Ranker
 from src.sim_user import SynUser
-
+from src.encoder_layers import FeedForward,Norm,PositionalEncoder
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Interactive Image Retrieval')
