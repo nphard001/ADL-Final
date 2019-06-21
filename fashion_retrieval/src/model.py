@@ -1,7 +1,7 @@
 from __future__ import print_function
 import torch
 import torch.nn as nn
-from encoder_layers import FeedForward,Norm,PositionalEncoder,EncoderLayer,Encoder
+from src.encoder_layers import FeedForward,Norm,PositionalEncoder,EncoderLayer,Encoder
 
 class ResponseEncoder(nn.Module):
     def __init__(self, num_emb, hid_dim=256, out_dim=256, max_len=16):
