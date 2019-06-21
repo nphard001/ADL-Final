@@ -13,30 +13,49 @@ def reply_index_view(request):
     line_userId = json_body['line_userId']
     img_idx = json_body['img_idx']
     token = GetTokenUpdateUserDone(line_userId)
+    print('token:', token)
+    if type(token)!=type('3ae07b'):
+        print('fail')
+        return JsonResponse({'state': 'fail', 'msg': 'no token (already replied that user?)'}, safe=False)
+    url_240x240, url = GetTrainURLByIndex(img_idx)
     tosend = {
-        'type': 'text',
+        'type': 'image',
         'reply_token': token,
-        'text': f'train_im index={img_idx}',
+        'url_240x240': url_240x240,
+        'url': url
     }
+    print('reply_index_view, tosend:')
+    print(json.dumps(tosend, indent=1))
     r = HTTPJson('https://nphard001.herokuapp.com/line/reply', tosend)
-    return JsonResponse({
+    return_json = {
         'state': 'done' if r.status_code==200 else 'fail',
         'status_code': r.status_code,
         'reason': r.reason,
-    }, safe=False)
+    }
+    UserReplyImage(
+        line_userId=line_userId,
+        train_idx=img_idx,
+        info=json.dumps({
+            'tosend': tosend,
+            'return_json': return_json
+        }),
+    ).save()
+    return JsonResponse(return_json, safe=False)
 
 @csrf_exempt
 def pending_list_view(request):
     json_body = json.loads(request.body.decode('utf-8'))
     pending_list = []
-    line_userId = json_body['line_userId'] # INDEV call
-    text_list, token = GetUserDialog(line_userId)
-    if token:
-        pending_list.append({
-            'line_userId': line_userId,
-            'text_list': text_list,
-            'token': token,
-        })
+    for ent in UserProfile.objects.all():
+        line_userId = ent.line_userId
+        text_list, token = GetUserDialog(line_userId)
+        if token:
+            print(f'need reply ({line_userId}, {token})')
+            pending_list.append({
+                'line_userId': line_userId,
+                'text_list': text_list,
+                'token': token,
+            })
     return JsonResponse({
         'state': 'done',
         'pending_list': pending_list,
