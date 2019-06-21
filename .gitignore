@@ -6,14 +6,15 @@ runtime/*
 *.zip
 *.sqlite3*
 tmp_*
+static/*
 
 
 # ignore models
-fashion_retrieval/caption_models/infos_best.pkl
-fashion_retrieval/caption_models/model_best.pth
-fashion_retrieval/features/256embedding.p
-fashion_retrieval/features/att_feature.npz
-fashion_retrieval/features/fc_feature.npz
+fashion_retrieval*/caption_models/infos_best.pkl
+fashion_retrieval*/caption_models/model_best.pth
+fashion_retrieval*/features/256embedding.p
+fashion_retrieval*/features/att_feature.npz
+fashion_retrieval*/features/fc_feature.npz
 
 # ignore pytorch ckpt
 *.pt
@@ -23,3 +24,6 @@ fashion_retrieval/images/*
 
 # ignore PyCharm project configs
 .idea/*
+
+# reading
+chatbot/try_interactive.py

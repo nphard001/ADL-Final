@@ -78,10 +78,17 @@ def train_val_epoch(train: bool):
             false_img_feat = ranker.feat[false_img_idx].to(device)
 
             # get relative captions from user model given user target images and feedback images
-            relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
-                                                  user_idx=target_img_idx, train_mode=train).to(device)
+            #relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
+            #                                      user_idx=target_img_idx, train_mode=train).to(device)
+            
+            # get both original text and index for feedback
+            relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx,
+                                                  user_idx=target_img_idx, train_mode=train)
+            
             # encode image and relative_text_ids
-            response_rep = encoder(candidate_img_feat, relative_text_idx)
+            #response_rep = encoder(candidate_img_feat, relative_text_idx)
+            response_rep = encoder(candidate_img_feat, relative_text)
+            
             # update history representation
             current_state, history_rep = tracker(response_rep, history_rep)
             # obtain the next turn's feedback images
@@ -122,18 +129,20 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(args.seed)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
         print(f"Using device: {device}")
 
         user = SynUser()
         ranker = Ranker()
 
-        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16).to(device)
+        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768).to(device)
+        
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
 
         optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr)
         optimizer_tracker = optim.Adam(tracker.parameters(), lr=args.lr)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
-
+        
         for epoch in range(1, args.epochs + 1):
             train_val_epoch(train=True)
             with torch.no_grad():
