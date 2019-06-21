@@ -14,7 +14,7 @@ from src.model import ResponseEncoder, StateTracker
 from src.monitor import ExpMonitorSl as ExpMonitor
 from src.ranker import Ranker
 from src.sim_user import SynUser
-from src.encoder_layers import FeedForward,Norm,PositionalEncoder
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Interactive Image Retrieval')
@@ -77,16 +77,11 @@ def train_val_epoch(train: bool):
             target_img_feat = ranker.feat[target_img_idx].to(device)
             false_img_feat = ranker.feat[false_img_idx].to(device)
 
-            # get relative captions from user model given user target images and feedback images
-            #relative_text_idx = user.get_feedback(act_idx=candidate_img_idx,
-            #                                      user_idx=target_img_idx, train_mode=train).to(device)
-            
             # get both original text and index for feedback
             relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx,
-                                                  user_idx=target_img_idx, train_mode=train)
+                                                                           user_idx=target_img_idx, train_mode=train)
             
             # encode image and relative_text_ids
-            #response_rep = encoder(candidate_img_feat, relative_text_idx)
             response_rep = encoder(candidate_img_feat, relative_text)
             
             # update history representation
@@ -136,7 +131,6 @@ if __name__ == '__main__':
         ranker = Ranker()
 
         encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768).to(device)
-        
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
 
         optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr)

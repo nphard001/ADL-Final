@@ -27,8 +27,8 @@ class SynUser:
         self.vocabSize = self.captioner_relative.get_vocab_size()
 
         # load pre-computed data rep.
-        self.fc = torch.from_numpy(np.load('features/fc_feature.npz')['arr_0']).to(self.device)
-        self.att = torch.from_numpy(np.load('features/att_feature.npz')['arr_0']).to(self.device)
+        self.fc = torch.tensor(np.load('features/fc_feature.npz')['arr_0'], requires_grad=False).cpu()
+        self.att = torch.tensor(np.load('features/att_feature.npz')['arr_0'], requires_grad=False).cpu()
         self.NUM_OBS = self.att.size(0)
         print('Data loading completed')
         print('fc.size', self.fc.size())
@@ -83,10 +83,10 @@ class SynUser:
         :return: size(N, 16) padded sequence, value is index
         """
 
-        act_fc = self.fc[act_idx + (0 if train_mode else self.NUM_TRAIN)]
-        act_att = self.att[act_idx + (0 if train_mode else self.NUM_TRAIN)]
-        user_fc = self.fc[user_idx + (0 if train_mode else self.NUM_TRAIN)]
-        user_att = self.att[user_idx + (0 if train_mode else self.NUM_TRAIN)]
+        act_fc = self.fc[act_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        act_att = self.att[act_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        user_fc = self.fc[user_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        user_att = self.att[user_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
 
         with torch.no_grad():
             seq_label, sents_label = \
@@ -100,7 +100,7 @@ class SynUser:
     def get_feedback_with_sent(self,
                                act_idx: torch.Tensor,
                                user_idx: torch.Tensor,
-                               train_mode: bool = True) -> torch.Tensor:
+                               train_mode: bool = True):
         """
         get the text feedback describing difference between proposed image and ground truth image
 
@@ -114,10 +114,10 @@ class SynUser:
         :return: size(N, 16) padded sequence, value is index / original text feedback
         """
 
-        act_fc = self.fc[act_idx + (0 if train_mode else self.NUM_TRAIN)]
-        act_att = self.att[act_idx + (0 if train_mode else self.NUM_TRAIN)]
-        user_fc = self.fc[user_idx + (0 if train_mode else self.NUM_TRAIN)]
-        user_att = self.att[user_idx + (0 if train_mode else self.NUM_TRAIN)]
+        act_fc = self.fc[act_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        act_att = self.att[act_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        user_fc = self.fc[user_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
+        user_att = self.att[user_idx + (0 if train_mode else self.NUM_TRAIN)].to(self.device)
 
         with torch.no_grad():
             seq_label, sents_label = \
