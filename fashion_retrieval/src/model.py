@@ -35,8 +35,6 @@ class ResponseEncoder(nn.Module):
         return self.img_linear(image_input)
 
     def encode_text(self, text_input):
-        # import ipdb
-        # ipdb.set_trace()
         x = self.emb_txt(text_input)
         x = self.cnn_txt(x)
         x, _ = torch.max(x, dim=2)

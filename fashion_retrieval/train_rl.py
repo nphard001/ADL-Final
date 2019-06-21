@@ -228,5 +228,5 @@ if __name__ == '__main__':
                         'tracker': behavior_tracker.state_dict()},
                        os.path.join(args.model_folder, f'rl-{epoch}.pt'))
 
-        with torch.no_grad:
+        with torch.no_grad():
             train_val_rl(args.epochs, train=False)
