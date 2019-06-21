@@ -91,6 +91,9 @@ class StateTracker(nn.Module):
 
         x = history_rep.permute(1,0,2)  # seq_len , N , input_dim
         x = self.encoder(x)
+        # print(x.size())
+        m = torch.max(x,1)[1].squeeze()
+        print(m.size())
 
         # =============== old rnn =====================
         # x = self.fc_joint(response_rep)
@@ -103,4 +106,5 @@ class StateTracker(nn.Module):
         #     self.history_rep = self.rnn(x, history_rep)
         # x = self.head(self.history_rep)
         # =============================================
-        return x, self.history_rep
+
+        return m, self.history_rep
