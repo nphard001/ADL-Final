@@ -10,7 +10,6 @@ class InputFeatures(object):
         self.tokens = tokens
         self.input_ids = input_ids
         self.input_mask = input_mask
-        #self.input_type_ids = input_type_ids
 
 
 def convert_examples_to_features(texts, max_seq_length, tokenizer):
@@ -24,8 +23,8 @@ def convert_examples_to_features(texts, max_seq_length, tokenizer):
 
     # Set maximum length
     if max_seq_length is None:
-        #Account for [CLS], [SEP] -> 2 additional tokens
-        max_seq_length = max(len(t) for t in all_tokens) + 2
+        # Account for [CLS], [SEP] -> 2 additional tokens
+        max_seq_length = max(len(t) for t in texts) + 2
 
     # Truncate tokens to maximum allowed length
     for tokens in token_list:
