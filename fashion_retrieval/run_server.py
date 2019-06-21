@@ -3,13 +3,16 @@ from __future__ import print_function
 import argparse
 import random
 import time
+import random
 
 import ipdb
 import torch
+from collections import defaultdict, Counter
 
 from src.sim_user import SynUser
 from src.ranker import Ranker
 from src.model import ResponseEncoder, StateTracker
+from nphard001.api_chatbot import HostDataChatbotAPI
 
 
 def parse_args():
@@ -55,8 +58,8 @@ if __name__ == '__main__':
         behavior_tracker = StateTracker(**tracker_config).to(device)
 
         checkpoint = torch.load(args.pretrained_model, map_location=lambda storage, loc: storage)
-        behavior_encoder.load_state_dict(checkpoint['encoder'])
-        behavior_tracker.load_state_dict(checkpoint['tracker'])
+        # behavior_encoder.load_state_dict(checkpoint['encoder'])
+        # behavior_tracker.load_state_dict(checkpoint['tracker'])
 
         behavior_encoder.eval()
         behavior_tracker.eval()
@@ -65,29 +68,39 @@ if __name__ == '__main__':
 
         ranker.update_rep(behavior_encoder, img_features)
 
+        user_hist = defaultdict(None)
+        user_prev_img_idx = defaultdict(None)
+        user_dialog_counter = Counter()
+
+        api = HostDataChatbotAPI()
+
         with torch.no_grad():
             while(True):
-                # sample data index
-                candidate_img_idx = torch.empty(1, dtype=torch.long, device=device)
-                user.sample_idx(candidate_img_idx, train_mode=False)
+                time.sleep(1)
+                # polling
+                for json_in in api.get_pending_list():
+                    user_id = json_in['line_userId']
+                    relative_text = json_in['text_list'][-1]
 
-                history_rep_behavior = None
+                    user_dialog_counter[user_id] += 1
 
-                print("Starting a new conversation.")
-                for k in range(args.turns):
-                    relative_text_idx = input("Please input relative feedback:\n")
-                    relative_text_idx = convert_sent2idx(relative_text_idx)
+                    if user_id is None:
+                        # sample data index
+                        candidate_img_idx = torch.empty(1, dtype=torch.long, device=device)
+                        user.sample_idx(candidate_img_idx, train_mode=False)
+                        user_prev_img_idx[user_id] = candidate_img_idx
 
+                    # relative_text_idx = convert_sent2idx(input("Please input relative feedback:\n"))
+                    # relative_text_idx = convert_sent2idx(relative_text)
                     # extract img features
-                    candidate_img_feat = ranker.feat[candidate_img_idx]
+                    # candidate_img_feat = ranker.feat[candidate_img_idx]
                     # encode image and relative_text_ids
-                    response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
+                    # response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
                     # update history representation
-                    current_state_behavior, history_rep_behavior = behavior_tracker(response_rep_behavior,
-                                                                                    history_rep_behavior)
+                    # current_state_behavior, user_hist[user_id] = behavior_tracker(response_rep_behavior,
+                    #                                                               user_hist[user_id])
 
-                    candidate_img_idx = ranker.nearest_neighbor(current_state_behavior)
-                    print(f"Proposed image index: {candidate_img_idx.item()}")
-                    time.sleep(1)
-                    # TODO: polling
-                print(f"Max dialog turns: {args.turns} reached. Thank you.\n")
+                    # candidate_img_idx = ranker.nearest_neighbor(current_state_behavior).item()
+                    # candidate_img_idx = ranker.nearest_neighbor(current_state_behavior).item()
+                    # json_out = api.send_reply_index(user_id, candidate_img_idx)
+                    json_out = api.send_reply_index(user_id, random.randint(0, 9999))
