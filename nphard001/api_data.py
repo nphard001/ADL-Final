@@ -6,6 +6,14 @@ class HostDataAPI:
     def __init__(self, host: str=r'https://linux7.csie.org:3721'):
         host = host.rstrip('/')
         self.host = host
+        self._r = None
+        self._j = None
+    @property
+    def last_response(self):
+        return self._r
+    @property
+    def last_json(self):
+        return self._j
     def get_metadata(self):
         return HTTPJson2Json(f'{self.host}/data/attributedata', {
             'type': 'metadata',

@@ -1,10 +1,26 @@
+from nphard001.img import *
 from nphard001.django_model import *
+from urllib.parse import quote
+
 
 class AttrMetadata(BaseModel):
     category = models.TextField(db_index=True, default='unknown')
     img_id = models.IntegerField(db_index=True, default=-1)
     img_path = models.TextField(default='None')
     dsr_path = models.TextField(default='None')
+    @staticmethod
+    def GetImgBinary(img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694):
+        obj = AttrMetadata.objects.filter(category=ctg, img_id=img_id)[0]
+        if img_type=='raw':
+            with open(obj.img_path, 'rb') as f:
+                return f.read()
+        elif img_type=='thumbnail':
+            # image via Pillow
+            img = Image.open(obj.img_path)
+            img.thumbnail([240, 240]) # it's inplace
+            img_bytes = BytesIO()
+            img.save(img_bytes, 'jpeg')
+            return img_bytes.getvalue()
 
 class UserProfile(BaseModel):
     updated = models.DateTimeField(auto_now=True, db_index=True)
@@ -44,6 +60,12 @@ class UserEvent(BaseModel):
             UserProfile(line_userId=lineID).save()
         return obj
 
+class UserReplyImage(BaseModel):
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+    line_userId = models.TextField(default='None', db_index=True)
+    train_idx = models.IntegerField(default=-1, db_index=True)
+    info = models.TextField(default='None')
+
 def GetUserDialog(line_userId: str):
     r'''token=None means all done'''
     object_set = UserEvent.objects
@@ -81,3 +103,11 @@ def GetTokenUpdateUserDone(line_userId: str):
     event.state = 'done'
     event.save()
     return event.line_replyToken
+
+def GetTrainURLByIndex(train_idx: int):
+    def _wrap(linux7):
+        heroku = 'https://nphard001.herokuapp.com/line/identity?url='
+        return heroku+quote(linux7, safe="")
+    url_240x240 = _wrap(f'https://linux7.csie.org:3721/data/image/thumbnail/train/{train_idx}')
+    url = _wrap(f'https://linux7.csie.org:3721/data/image/raw/train/{train_idx}')
+    return url_240x240, url
