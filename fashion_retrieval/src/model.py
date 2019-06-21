@@ -76,7 +76,6 @@ class ResponseEncoder(nn.Module):
         text_rep = self.txt_linear(pooled_output).to(self.device)
         return text_rep
         
-
     def forward(self, img_rep, text):
         text_rep = self.encode_text(text)
         return img_rep + text_rep

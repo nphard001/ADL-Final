@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import argparse
 import random
+import time
 
 import ipdb
 import torch
@@ -24,9 +25,16 @@ def parse_args():
 
 
 def convert_sent2idx(sent: str, max_sent_len=16) -> torch.Tensor:
-    # TODO:
-    return torch.tensor([[random.randint(0, 100)] * min(len(sent), max_sent_len) + [0] * (max_sent_len - len(sent))],
-                        dtype=torch.long, device=device)
+    idx2word = user.captioner_relative.vocab
+    word2idx = {word: int(idx) for idx, word in idx2word.items()}
+    sent_idx = []
+    for token in sent.strip().split():
+        try:
+            sent_idx.append(word2idx[token])
+        except KeyError:
+            pass
+
+    return torch.tensor([sent_idx + [0] * (max_sent_len - len(sent_idx))], dtype=torch.long, device=device)
 
 
 if __name__ == '__main__':
@@ -53,8 +61,6 @@ if __name__ == '__main__':
         behavior_encoder.eval()
         behavior_tracker.eval()
 
-        # TODO: get the right image index
-        # img_features = user.train_feature if train else user.test_feature
         img_features = user.train_feature
 
         ranker.update_rep(behavior_encoder, img_features)
@@ -82,5 +88,6 @@ if __name__ == '__main__':
 
                     candidate_img_idx = ranker.nearest_neighbor(current_state_behavior)
                     print(f"Proposed image index: {candidate_img_idx.item()}")
+                    time.sleep(1)
+                    # TODO: polling
                 print(f"Max dialog turns: {args.turns} reached. Thank you.\n")
-

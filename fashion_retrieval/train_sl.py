@@ -2,18 +2,18 @@ from __future__ import print_function
 
 import argparse
 import math
-import random
 import os
+import random
 
 import ipdb
 import torch
 import torch.optim as optim
 
-from src.sim_user import SynUser
-from src.ranker import Ranker
-from src.model import ResponseEncoder, StateTracker
 from src.loss import TripletLossIP
+from src.model import ResponseEncoder, StateTracker
 from src.monitor import ExpMonitorSl as ExpMonitor
+from src.ranker import Ranker
+from src.sim_user import SynUser
 
 
 def parse_args():
