@@ -69,6 +69,7 @@ if __name__ == '__main__':
 
         user_hist = defaultdict(lambda: None)
         user_dialog_counter = Counter()
+        user_last_reply = defaultdict(lambda: [random.randrange(10000)])
 
         api = HostDataChatbotAPI()
 
@@ -79,9 +80,6 @@ if __name__ == '__main__':
                     time.sleep(1)
                     continue
                 print(f"Received requests: {len(pending_list)}")
-                user_ids = []
-                relative_text_idxs = torch.empty(len(pending_list), max_sent_len, dtype=torch.long, device=device)
-
                 for i, json_in in enumerate(pending_list):
                     user_id = json_in['line_userId']
                     relative_text = json_in['text_list'][-1]
@@ -92,25 +90,28 @@ if __name__ == '__main__':
                     if relative_text.lower().startswith('restart'):
                         user_dialog_counter[user_id] = 0
                         user_hist[user_id] = None
+                        user_last_reply[user_id] = []
 
-                    if user_dialog_counter[user_id] == 0:
-                        # sample data index
-                        candidate_img_idx = torch.empty(1, dtype=torch.long, device=device)
-                        user.sample_idx(candidate_img_idx, train_mode=False)
+                    relative_text_idx = convert_sent2idx(relative_text, max_sent_len)
 
-                    user_ids.append(user_id)
-                    relative_text_idxs[i] = convert_sent2idx(relative_text, max_sent_len)
-                    user_dialog_counter[user_id] += 1
+                    candidate_img_idx = user_last_reply[user_id][-1] if len(user_last_reply[user_id]) > 0 \
+                        else random.randrange(10000)
+                    candidate_img_feat = ranker.feat[candidate_img_idx]
+                    response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
 
-                candidate_img_feat = ranker.feat[candidate_img_idx]
-                response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idxs)
-
-                for i, user_id in enumerate(user_ids):
                     current_state_behavior, user_hist[user_id] = behavior_tracker(
-                        response_rep_behavior[i].unsqueeze(0),
+                        response_rep_behavior,
                         user_hist[user_id][:last_k_turns] if user_hist[user_id] is not None else None)
 
-                reply_img_idxs = ranker.nearest_neighbor(current_state_behavior)
+                    reply_img_idx = ranker.k_nearest_neighbors(current_state_behavior, 10).squeeze()
 
-                for user_id, reply_img_idx in zip(user_ids, reply_img_idxs):
-                    json_out = api.send_reply_index(user_id, reply_img_idx.item())
+                    for reply_idx in reply_img_idx:
+                        if reply_idx.item() not in user_last_reply[user_id]:
+                            reply_img_idx = reply_idx.item()
+                            break
+                    else:
+                        reply_img_idx = reply_img_idx[0].item()
+
+                    json_out = api.send_reply_index(user_id, reply_img_idx)
+                    user_last_reply[user_id].append(reply_img_idx)
+                    user_dialog_counter[user_id] += 1
