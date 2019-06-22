@@ -67,7 +67,6 @@ class ResponseEncoder(nn.Module):
         with torch.no_grad():
             x = self.emb_txt(text_input)
         x = self.emb_fc(x)
-        print(x.size())
         x = self.cnn_txt(x)
         x, _ = torch.max(x, dim=2)
         # x = x.squeeze(2)
