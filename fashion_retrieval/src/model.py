@@ -75,7 +75,7 @@ class ResponseEncoder(nn.Module):
 
 
 class StateTracker(nn.Module):
-    def __init__(self, input_dim, hid_dim, out_dim, num_encoder=2, num_heads=1):
+    def __init__(self, input_dim, hid_dim, out_dim, num_encoder=4, num_heads=2):
         super(StateTracker, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.input_dim = input_dim
@@ -116,3 +116,13 @@ class StateTracker(nn.Module):
         x = self.state_project(x)
 
         return x, history_rep
+
+
+class Reconstruct(nn.Module):
+    def __init__(self, dim):
+        super(Reconstruct, self).__init__()
+        self.fc = nn.Linear(dim, 10000)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x

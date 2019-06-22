@@ -8,9 +8,10 @@ import random
 import ipdb
 import torch
 import torch.optim as optim
+from torch import nn
 
 from src.loss import TripletLossIP
-from src.model import ResponseEncoder, StateTracker
+from src.model import ResponseEncoder, StateTracker, Reconstruct
 from src.monitor import ExpMonitorSl as ExpMonitor
 from src.ranker import Ranker
 from src.sim_user import SynUser
@@ -34,7 +35,7 @@ def parse_args():
     parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--triplet-margin', type=float, default=0.1, metavar='EV',
-                        help='triplet loss margin ')
+                        help='triplet loss margin')
     # exp. control
     parser.add_argument('--train-turns', type=int, default=5,
                         help='dialog turns for training')
@@ -47,6 +48,7 @@ def train_val_epoch(train: bool):
     print(('Train' if train else 'Eval') + f'\tepoch #{epoch}')
     encoder.train(train)
     tracker.train(train)
+    reconstructor.train(train)
     triplet_loss.train(train)
 
     exp_monitor_candidate = ExpMonitor(args, user, train_mode=train)
@@ -78,7 +80,6 @@ def train_val_epoch(train: bool):
             # get both original text and index for feedback
             relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx,
                                                                            user_idx=target_img_idx, train_mode=train)
-            
             # encode image and relative_text_ids
             response_rep = encoder(candidate_img_feat, relative_text_idx.cuda())
 
@@ -107,16 +108,22 @@ def train_val_epoch(train: bool):
                                            target_img_idx, false_img_idx, candidate_img_idx, k)
 
         if train:
+            logits = reconstructor(torch.mean(history_rep, 0))
+            loss_cls = classification_criterion(logits, target_img_idx)
+
             # finish dialog and update model parameters
             optimizer_encoder.zero_grad()
             optimizer_tracker.zero_grad()
-            mean_loss = torch.stack(outs).mean()
+            optimizer_recon.zero_grad()
+            mean_loss = torch.stack(outs).mean() + loss_cls
             mean_loss.backward(retain_graph=True)
             optimizer_encoder.step()
             optimizer_tracker.step()
+            optimizer_recon.step()
 
         if batch_idx % args.log_interval == 0:
             exp_monitor_candidate.print_interval(epoch, batch_idx, num_batches)
+
     exp_monitor_candidate.print_all(epoch)
 
 
@@ -137,10 +144,13 @@ if __name__ == '__main__':
 
         encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768).to(device)
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
+        reconstructor = Reconstruct(256).to(device)
 
         optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr)
         optimizer_tracker = optim.Adam(tracker.parameters(), lr=args.lr)
+        optimizer_recon = optim.Adam(reconstructor.parameters(), lr=args.lr)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
+        classification_criterion = nn.CrossEntropyLoss()
         
         for epoch in range(1, args.epochs + 1):
             train_val_epoch(train=True)

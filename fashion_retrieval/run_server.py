@@ -45,6 +45,7 @@ if __name__ == '__main__':
         args = parse_args()
         max_sent_len = 16
         max_dialog_time = 30
+        last_k_turns = 5
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         user = SynUser()
@@ -88,6 +89,10 @@ if __name__ == '__main__':
                     # if user_dialog_counter[user_id] >= max_dialog_time:
                     #     continue
 
+                    if relative_text.lower().startswith('restart'):
+                        user_dialog_counter[user_id] = 0
+                        user_hist[user_id] = None
+
                     if user_dialog_counter[user_id] == 0:
                         # sample data index
                         candidate_img_idx = torch.empty(1, dtype=torch.long, device=device)
@@ -101,8 +106,9 @@ if __name__ == '__main__':
                 response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idxs)
 
                 for i, user_id in enumerate(user_ids):
-                    current_state_behavior, user_hist[user_id] = behavior_tracker(response_rep_behavior[i].unsqueeze(0),
-                                                                                  user_hist[user_id])
+                    current_state_behavior, user_hist[user_id] = behavior_tracker(
+                        response_rep_behavior[i].unsqueeze(0),
+                        user_hist[user_id][:last_k_turns] if user_hist[user_id] is not None else None)
 
                 reply_img_idxs = ranker.nearest_neighbor(current_state_behavior)
 

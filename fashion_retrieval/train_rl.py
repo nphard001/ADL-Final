@@ -130,7 +130,8 @@ def train_val_rl(epoch, train: bool):
 
         loss_sum = 0
         for k in range(dialog_turns):
-            relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx, user_idx=target_img_idx, train_mode=train)
+            relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx,
+                                                                           user_idx=target_img_idx, train_mode=train)
 
             # extract img features
             candidate_img_feat = ranker.feat[candidate_img_idx]
