@@ -66,6 +66,26 @@ class UserReplyImage(BaseModel):
     train_idx = models.IntegerField(default=-1, db_index=True)
     info = models.TextField(default='None')
 
+class AttrTrain(BaseModel):
+    r'''some cacheable info related to train_im index (like pretrain features)'''
+    tag = models.TextField(default='toy', db_index=True)
+    idx = models.IntegerField(default=-1, db_index=True)
+    info = models.TextField(default='None')
+    def complete(self):
+        r'''derive info from (tag, idx) by an in-memory way'''
+        self.info = json.dumps({'idx': self.idx, 'value': self.idx**2})
+        return self
+    @classmethod
+    def get_cache(cls, **query_dict):
+        try:
+            return cls.objects.get(**query_dict)
+        except cls.DoesNotExist:
+            obj = cls(**query_dict).complete()
+            obj.save()
+            return obj
+            
+
+# ================================================================
 def GetUserDialog(line_userId: str):
     r'''token=None means all done'''
     object_set = UserEvent.objects

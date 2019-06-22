@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.forms.models import model_to_dict
 class BaseModel(models.Model):
+    objects = models.Manager()
     class Meta:
         abstract = True
     def to_dict(self):
