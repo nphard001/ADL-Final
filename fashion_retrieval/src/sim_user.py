@@ -25,7 +25,6 @@ class SynUser:
         self.captioner_relative.opt['use_att'] = True
         # build voc
         self.vocabSize = self.captioner_relative.get_vocab_size()
-
         # load pre-computed data rep.
         self.fc = torch.tensor(np.load('features/fc_feature.npz')['arr_0'], requires_grad=False).cpu()
         self.att = torch.tensor(np.load('features/att_feature.npz')['arr_0'], requires_grad=False).cpu()
@@ -33,7 +32,6 @@ class SynUser:
         print('Data loading completed')
         print('fc.size', self.fc.size())
         print('att.size', self.att.size())
-
         # split index
         idx = torch.randperm(self.NUM_OBS)
         self.NUM_TRAIN = num_train
@@ -95,7 +93,7 @@ class SynUser:
         res = torch.zeros(seq_label.size(0), 16, dtype=torch.long, device=self.device)
         res[:, :seq_label.size(1)].copy_(seq_label)
         return res
-    
+
     # Kept the "get_feedback" method above just in case
     def get_feedback_with_sent(self,
                                act_idx: torch.Tensor,

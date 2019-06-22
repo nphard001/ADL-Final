@@ -172,7 +172,7 @@ class OldModel(CaptionModel):
                 seqLogprobs.append(sampleLogprobs.view(-1))
 
             output, state = self.core(xt, fc_feats, att_feats, state)
-            logprobs = F.log_softmax(self.logit(self.dropout(output)), dim=1)
+            logprobs = F.log_softmax(self.logit(self.dropout(output)))
 
         return torch.cat([_.unsqueeze(1) for _ in seq], 1), torch.cat([_.unsqueeze(1) for _ in seqLogprobs], 1)
 
@@ -209,7 +209,7 @@ class ShowAttendTellCore(nn.Module):
             att_h = self.h2att(state[0][-1])                    # batch * att_hid_size
             att_h = att_h.unsqueeze(1).expand_as(att)           # batch * att_size * att_hid_size
             dot = att + att_h                                   # batch * att_size * att_hid_size
-            dot = torch.tanh(dot)                                   # batch * att_size * att_hid_size
+            dot = F.tanh(dot)                                   # batch * att_size * att_hid_size
             dot = dot.view(-1, self.att_hid_size)               # (batch * att_size) * att_hid_size
             dot = self.alpha_net(dot)                           # (batch * att_size) * 1
             dot = dot.view(-1, att_size)                        # batch * att_size
@@ -219,8 +219,8 @@ class ShowAttendTellCore(nn.Module):
             att_h = self.h2att(state[0][-1])                    # batch * 1
             att_h = att_h.expand_as(att)                        # batch * att_size
             dot = att_h + att                                   # batch * att_size
-       
-        weight = F.softmax(dot, dim=1)
+        
+        weight = F.softmax(dot)
         att_feats_ = att_feats.view(-1, att_size, self.att_feat_size) # batch * att_size * att_feat_size
         att_res = torch.bmm(weight.unsqueeze(1), att_feats_).squeeze(1) # batch * att_feat_size
 

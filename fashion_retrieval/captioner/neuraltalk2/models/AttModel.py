@@ -262,7 +262,7 @@ class AdaAtt_lstm(nn.Module):
             out_gate = sigmoid_chunk.narrow(1, self.rnn_size * 2, self.rnn_size)
             # decode the write inputs
             if not self.use_maxout:
-                in_transform = torch.tanh(all_input_sums.narrow(1, 3 * self.rnn_size, self.rnn_size))
+                in_transform = F.tanh(all_input_sums.narrow(1, 3 * self.rnn_size, self.rnn_size))
             else:
                 in_transform = all_input_sums.narrow(1, 3 * self.rnn_size, 2 * self.rnn_size)
                 in_transform = torch.max(\
@@ -271,7 +271,7 @@ class AdaAtt_lstm(nn.Module):
             # perform the LSTM update
             next_c = forget_gate * prev_c + in_gate * in_transform
             # gated cells form the output
-            tanh_nex_c = torch.tanh(next_c)
+            tanh_nex_c = F.tanh(next_c)
             next_h = out_gate * tanh_nex_c
             if L == self.num_layers-1:
                 if L == 0:
@@ -338,7 +338,7 @@ class AdaAtt_attention(nn.Module):
         img_all = torch.cat([fake_region.view(-1,1,self.input_encoding_size), conv_feat], 1)
         img_all_embed = torch.cat([fake_region_embed.view(-1,1,self.input_encoding_size), conv_feat_embed], 1)
 
-        hA = torch.tanh(img_all_embed + txt_replicate)
+        hA = F.tanh(img_all_embed + txt_replicate)
         hA = F.dropout(hA,self.drop_prob_lm, self.training)
         
         hAflat = self.alpha_net(hA.view(-1, self.att_hid_size))
@@ -349,7 +349,7 @@ class AdaAtt_attention(nn.Module):
 
         atten_out = visAttdim + h_out_linear
 
-        h = torch.tanh(self.att2h(atten_out))
+        h = F.tanh(self.att2h(atten_out))
         h = F.dropout(h, self.drop_prob_lm, self.training)
         return h
 
@@ -408,7 +408,7 @@ class Attention(nn.Module):
         att_h = self.h2att(h)                        # batch * att_hid_size
         att_h = att_h.unsqueeze(1).expand_as(att)            # batch * att_size * att_hid_size
         dot = att + att_h                                   # batch * att_size * att_hid_size
-        dot = torch.tanh(dot)                                # batch * att_size * att_hid_size
+        dot = F.tanh(dot)                                # batch * att_size * att_hid_size
         dot = dot.view(-1, self.att_hid_size)               # (batch * att_size) * att_hid_size
         dot = self.alpha_net(dot)                           # (batch * att_size) * 1
         dot = dot.view(-1, att_size)                        # batch * att_size
@@ -456,7 +456,7 @@ class Att2in2Core(nn.Module):
             in_transform.narrow(1, 0, self.rnn_size),
             in_transform.narrow(1, self.rnn_size, self.rnn_size))
         next_c = forget_gate * state[1][-1] + in_gate * in_transform
-        next_h = out_gate * torch.tanh(next_c)
+        next_h = out_gate * F.tanh(next_c)
 
         output = self.dropout(next_h)
         state = (next_h.unsqueeze(0), next_c.unsqueeze(0))

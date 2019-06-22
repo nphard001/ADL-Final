@@ -19,7 +19,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Demo')
     parser.add_argument('--top-k', type=int, default=4,
                         help='top k candidate for policy and nearest neighbors')
-    parser.add_argument('--pretrained-model', type=str, default="models/rl-1.pt",
+    parser.add_argument('--pretrained-model', type=str, default="models/rl-3.pt",
                         help='path to pretrained sl model')
     # exp. control
     parser.add_argument('--turns', type=int, default=5,
@@ -43,10 +43,8 @@ def convert_sent2idx(sent: str, max_sent_len=16) -> torch.Tensor:
 if __name__ == '__main__':
     with ipdb.launch_ipdb_on_exception():
         args = parse_args()
-
-        random.seed(633)
-        torch.manual_seed(633)
-        torch.cuda.manual_seed_all(633)
+        max_sent_len = 16
+        max_dialog_time = 30
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         user = SynUser()
@@ -58,8 +56,8 @@ if __name__ == '__main__':
         behavior_tracker = StateTracker(**tracker_config).to(device)
 
         checkpoint = torch.load(args.pretrained_model, map_location=lambda storage, loc: storage)
-        # behavior_encoder.load_state_dict(checkpoint['encoder'])
-        # behavior_tracker.load_state_dict(checkpoint['tracker'])
+        behavior_encoder.load_state_dict(checkpoint['encoder'])
+        behavior_tracker.load_state_dict(checkpoint['tracker'])
 
         behavior_encoder.eval()
         behavior_tracker.eval()
@@ -68,39 +66,45 @@ if __name__ == '__main__':
 
         ranker.update_rep(behavior_encoder, img_features)
 
-        user_hist = defaultdict(None)
-        user_prev_img_idx = defaultdict(None)
+        user_hist = defaultdict(lambda: None)
         user_dialog_counter = Counter()
 
         api = HostDataChatbotAPI()
 
         with torch.no_grad():
             while(True):
-                time.sleep(1)
-                # polling
-                for json_in in api.get_pending_list():
+                pending_list = api.get_pending_list()
+                if len(pending_list) == 0:
+                    time.sleep(1)
+                    continue
+                print(f"Received requests: {len(pending_list)}")
+                user_ids = []
+                relative_text_idxs = torch.empty(len(pending_list), max_sent_len, dtype=torch.long, device=device)
+
+                for i, json_in in enumerate(pending_list):
                     user_id = json_in['line_userId']
                     relative_text = json_in['text_list'][-1]
 
-                    user_dialog_counter[user_id] += 1
+                    # if user_dialog_counter[user_id] >= max_dialog_time:
+                    #     continue
 
-                    if user_id is None:
+                    if user_dialog_counter[user_id] == 0:
                         # sample data index
                         candidate_img_idx = torch.empty(1, dtype=torch.long, device=device)
                         user.sample_idx(candidate_img_idx, train_mode=False)
-                        user_prev_img_idx[user_id] = candidate_img_idx
 
-                    # relative_text_idx = convert_sent2idx(input("Please input relative feedback:\n"))
-                    # relative_text_idx = convert_sent2idx(relative_text)
-                    # extract img features
-                    # candidate_img_feat = ranker.feat[candidate_img_idx]
-                    # encode image and relative_text_ids
-                    # response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
-                    # update history representation
-                    # current_state_behavior, user_hist[user_id] = behavior_tracker(response_rep_behavior,
-                    #                                                               user_hist[user_id])
+                    user_ids.append(user_id)
+                    relative_text_idxs[i] = convert_sent2idx(relative_text, max_sent_len)
+                    user_dialog_counter[user_id] += 1
 
-                    # candidate_img_idx = ranker.nearest_neighbor(current_state_behavior).item()
-                    # candidate_img_idx = ranker.nearest_neighbor(current_state_behavior).item()
-                    # json_out = api.send_reply_index(user_id, candidate_img_idx)
-                    json_out = api.send_reply_index(user_id, random.randint(0, 9999))
+                candidate_img_feat = ranker.feat[candidate_img_idx]
+                response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idxs)
+
+                for i, user_id in enumerate(user_ids):
+                    current_state_behavior, user_hist[user_id] = behavior_tracker(response_rep_behavior[i].unsqueeze(0),
+                                                                                  user_hist[user_id])
+
+                reply_img_idxs = ranker.nearest_neighbor(current_state_behavior)
+
+                for user_id, reply_img_idx in zip(user_ids, reply_img_idxs):
+                    json_out = api.send_reply_index(user_id, reply_img_idx.item())

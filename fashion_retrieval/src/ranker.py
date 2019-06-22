@@ -48,7 +48,7 @@ class Ranker:
             val = self.feat - target[i].expand(self.feat.size(0), self.feat.size(1))
             val = torch.pow(val, 2).sum(1)
             min_idx = val.argmin(0)
-            idx[i] = min_idx.item()
+            idx[i] = min_idx
         return idx
 
     def k_nearest_neighbors(self, target, k=4):
