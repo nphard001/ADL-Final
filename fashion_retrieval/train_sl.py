@@ -18,11 +18,11 @@ from src.sim_user import SynUser
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Interactive Image Retrieval')
-    parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                         help='input batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=128, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=64, metavar='N',
                         help='input batch size for testing')
-    parser.add_argument('--epochs', type=int, default=15, metavar='N',
+    parser.add_argument('--epochs', type=int, default=25, metavar='N',
                         help='number of epochs to train')
     parser.add_argument('--model-folder', type=str, default="models/",
                         help='triplet loss margin ')
@@ -31,7 +31,7 @@ def parse_args():
                         help='learning rate')
     parser.add_argument('--seed', type=int, default=0, metavar='S',
                         help='random seed')
-    parser.add_argument('--log-interval', type=int, default=50, metavar='N',
+    parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--triplet-margin', type=float, default=0.1, metavar='EV',
                         help='triplet loss margin ')
@@ -47,6 +47,7 @@ def train_val_epoch(train: bool):
     print(('Train' if train else 'Eval') + f'\tepoch #{epoch}')
     encoder.train(train)
     tracker.train(train)
+    triplet_loss.train(train)
 
     exp_monitor_candidate = ExpMonitor(args, user, train_mode=train)
     img_features = user.train_feature.to(device) if train else user.test_feature.to(device)
@@ -73,30 +74,34 @@ def train_val_epoch(train: bool):
         # start dialog
         for k in range(dialog_turns):
             candidate_img_feat = ranker.feat[candidate_img_idx].to(device)
-            user.sample_idx(false_img_idx, train_mode=train)
-            target_img_feat = ranker.feat[target_img_idx].to(device)
-            false_img_feat = ranker.feat[false_img_idx].to(device)
 
             # get both original text and index for feedback
             relative_text_idx, relative_text = user.get_feedback_with_sent(act_idx=candidate_img_idx,
                                                                            user_idx=target_img_idx, train_mode=train)
             
             # encode image and relative_text_ids
-            response_rep = encoder(candidate_img_feat, relative_text)
-            
+            response_rep = encoder(candidate_img_feat, relative_text_idx.cuda())
+
             # update history representation
             current_state, history_rep = tracker(response_rep, history_rep)
+
+            user.sample_idx(false_img_idx, train_mode=train)
+            target_img_feat = ranker.feat[target_img_idx].to(device)
+            false_img_feat = ranker.feat[false_img_idx].to(device)
+
+            # loss
+            loss = triplet_loss.forward(current_state,
+                                        target_img_feat,
+                                        false_img_feat)
+
+            outs.append(loss)
+
             # obtain the next turn's feedback images
             candidate_img_idx = ranker.nearest_neighbor(current_state.detach())
 
-            # ranking and loss
+            # ranking
             ranking_candidate = ranker.compute_rank(current_state.detach(), target_img_idx)
 
-            # TODO:                       STATE SPACE     IMAGE SPACE      IMAGE SPACE
-            # TODO: the training input of triplet loss are not in the same space
-            loss = triplet_loss.forward(current_state, target_img_feat, false_img_feat)
-
-            outs.append(loss)
             # log
             exp_monitor_candidate.log_step(ranking_candidate, loss.detach(),
                                            target_img_idx, false_img_idx, candidate_img_idx, k)

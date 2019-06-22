@@ -18,38 +18,24 @@ from src.monitor import ExpMonitorRl as ExpMonitor
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='PyTorch Example')
-    parser.add_argument('--batch-size', type=int, default=8,
-                        help='input batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=128,
-                        help='input batch size for testing')
-    parser.add_argument('--epochs', type=int, default=15,
-                        help='number of epochs to train')
+    parser = argparse.ArgumentParser(description='Train RL')
+    parser.add_argument('--batch-size', type=int, default=16, help='input batch size for training')
+    parser.add_argument('--test-batch-size', type=int, default=128, help='input batch size for testing')
+    parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train')
     # learning
-    parser.add_argument('--lr', type=float, default=0.0001,
-                        help='learning rate')
-    parser.add_argument('--tau', type=float, default=1,
-                        help='softmax temperature')
-    parser.add_argument('--seed', type=int, default=7771,
-                        help='random seed')
-    parser.add_argument('--log-interval', type=int, default=10,
-                        help='how many batches to wait before logging training status')
-    parser.add_argument('--neg-num', type=int, default=5,
-                        help='number of negative candidates in the denominator')
-    parser.add_argument('--model-folder', type=str, default="models/",
-                        help='triplet loss margin ')
+    parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
+    parser.add_argument('--tau', type=float, default=1, help='softmax temperature')
+    parser.add_argument('--seed', type=int, default=633, help='random seed')
+    parser.add_argument('--log-interval', type=int, default=30, help='how many batches to logging training status')
+    parser.add_argument('--neg-num', type=int, default=5, help='number of negative candidates in the denominator')
+    parser.add_argument('--model-folder', type=str, default="models/")
 
-    parser.add_argument('--top-k', type=int, default=4,
-                        help='top k candidate for policy and nearest neighbors')
-    parser.add_argument('--pretrained-model', type=str, default="models/sl-12.pt",
-                        help='path to pretrained sl model')
-    parser.add_argument('--triplet-margin', type=float, default=0.1, metavar='EV',
-                        help='triplet loss margin ')
+    parser.add_argument('--top-k', type=int, default=4, help='top k candidate for policy and nearest neighbors')
+    parser.add_argument('--pretrained-model', type=str, default="models/sl-25.pt", help='path to pretrained sl model')
+    parser.add_argument('--triplet-margin', type=float, default=0.1, metavar='EV', help='triplet loss margin ')
     # exp. control
-    parser.add_argument('--train-turns', type=int, default=5,
-                        help='dialog turns for training')
-    parser.add_argument('--test-turns', type=int, default=5,
-                        help='dialog turns for testing')
+    parser.add_argument('--train-turns', type=int, default=5, help='dialog turns for training')
+    parser.add_argument('--test-turns', type=int, default=5, help='dialog turns for testing')
     return parser.parse_args()
 
 
@@ -61,16 +47,17 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
     target_hx_bk = target_tracker.history_rep
     rollout_values = []
     for i in range(args.top_k):
-        target_tracker.history_rep = target_hx_bk.detach() if target_hx_bk else None
+        target_tracker.history_rep = target_hx_bk.detach() if target_hx_bk is not None else None
         act_img_idx = top_k_act_img_idx[:, i]
         score = 0
         for j in range(max_turn - cur_turn):
-            _, txt_input = user.get_feedback_with_sent(act_idx=act_img_idx, user_idx=user_img_idx,  train_mode=True)
+            txt_input_idx, txt_input = user.get_feedback_with_sent(act_idx=act_img_idx, user_idx=user_img_idx,
+                                                                   train_mode=True)
 
             act_emb = ranker.feat[act_img_idx]
 
             with torch.no_grad():
-                action = target_encoder(act_emb, txt_input)
+                action = target_encoder(act_emb, txt_input_idx.cuda())
                 action, _ = target_tracker(action)
 
             act_img_idx = ranker.nearest_neighbor(action.data)
@@ -113,8 +100,8 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
 
 def train_val_rl(epoch, train: bool):
     print(('Train' if train else 'Eval') + f'\tEpoch #{epoch}')
-    if train:
-        behavior_encoder.set_rl_mode()
+    # if train:
+    #     behavior_encoder.set_rl_mode()
     behavior_encoder.train(train)
     behavior_tracker.train(train)
     target_encoder.eval()
@@ -148,13 +135,13 @@ def train_val_rl(epoch, train: bool):
             # extract img features
             candidate_img_feat = ranker.feat[candidate_img_idx]
             # encode image and relative_text_ids
-            response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text)
+            response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx.cuda())
             # update history representation
             current_state_behavior, history_rep_behavior = behavior_tracker(response_rep_behavior, history_rep_behavior)
 
             if train:
                 with torch.no_grad():
-                    response_rep_target = target_encoder(candidate_img_feat, relative_text)
+                    response_rep_target = target_encoder(candidate_img_feat, relative_text_idx.cuda())
                     current_state_target, history_rep_target = target_tracker(response_rep_target, history_rep_target)
                 ranking_candidate = ranker.compute_rank(current_state_behavior.detach(), target_img_idx)
 

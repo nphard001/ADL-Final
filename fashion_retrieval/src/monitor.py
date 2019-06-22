@@ -9,7 +9,7 @@ class ExpMonitorSl:
         self.user = user
         self.train_mode = train_mode
         self.num_turns = self.args.train_turns if self.train_mode else self.args.test_turns
-        self.num_act = self.user.NUM_TRAIN if self.train_mode else self.user.NUM_TEST
+        self.num_act = self.user.train_feature.size(0) if self.train_mode else self.user.test_feature.size(0)
 
         self.loss = torch.zeros(self.num_turns)
         self.all_loss = torch.zeros(self.num_turns)
@@ -90,7 +90,7 @@ class ExpMonitorRl:
         self.train_mode = train_mode
 
         self.num_dialog_turns = self.args.train_turns if self.train_mode else self.args.test_turns
-        self.num_data = self.user.NUM_TRAIN if self.train_mode else self.user.NUM_TEST
+        self.num_data = self.user.train_feature.size(0) if self.train_mode else self.user.test_feature.size(0)
 
         self.loss = torch.zeros(self.num_dialog_turns)
         self.all_loss = torch.zeros(self.num_dialog_turns)
