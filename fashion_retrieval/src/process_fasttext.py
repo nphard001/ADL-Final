@@ -1,15 +1,17 @@
 import re
 import torch
 import numpy as np
-def load_embedding(embedding_path,words):
+
+
+def load_embedding(embedding_path, words):
     if words is not None:
         words_set = set()
         idx_dict = {}
-        for idx,w in words.items():
+        for idx, w in words.items():
             words_set.add(w)
             idx_dict[w] = int(idx)
 
-    vectors = np.zeros((len(words)+1,300))
+    vectors = np.zeros((len(words) + 1, 300))
 
     num_oovs = 0
 
@@ -34,8 +36,7 @@ def load_embedding(embedding_path,words):
                 _id = idx_dict[word]
                 vectors[_id] = np.array([float(v) for v in cols[1:]])
 
-
     vectors = torch.tensor(vectors, dtype=torch.float32)
     print(num_oovs)
-    print("fasttext embedding size",vectors.size())
+    print("fasttext embedding size", vectors.size())
     return vectors

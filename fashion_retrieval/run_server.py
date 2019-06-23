@@ -1,13 +1,13 @@
 from __future__ import print_function
 
 import argparse
-import random
+import pickle
 import time
-import random
+from requests.exceptions import ChunkedEncodingError
 
 import ipdb
 import torch
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 from src.sim_user import SynUser
 from src.ranker import Ranker
@@ -21,6 +21,8 @@ def parse_args():
                         help='top k candidate for policy and nearest neighbors')
     parser.add_argument('--pretrained-model', type=str, default="models/rl-3.pt",
                         help='path to pretrained sl model')
+    parser.add_argument('--embedding', type=str, default="features/embedding.pkl",
+                        help='processed embedding vectors')
     # exp. control
     parser.add_argument('--turns', type=int, default=5,
                         help='dialog turns')
@@ -44,14 +46,17 @@ if __name__ == '__main__':
     with ipdb.launch_ipdb_on_exception():
         args = parse_args()
         max_sent_len = 16
-        max_dialog_time = 30
         last_k_turns = 5
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         user = SynUser()
         ranker = Ranker()
 
-        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16}
+        with open(args.embedding, 'rb') as f:
+            embedding = pickle.load(f)
+
+        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16,
+                          'embedding': embedding}
         tracker_config = {'input_dim': 256, 'hid_dim': 512, 'out_dim': 256}
         behavior_encoder = ResponseEncoder(**encoder_config).to(device)
         behavior_tracker = StateTracker(**tracker_config).to(device)
@@ -68,40 +73,44 @@ if __name__ == '__main__':
         ranker.update_rep(behavior_encoder, img_features)
 
         user_hist = defaultdict(lambda: None)
-        user_dialog_counter = Counter()
-        user_last_reply = defaultdict(lambda: [random.randrange(10000)])
+        user_last_reply = defaultdict(list)
 
         api = HostDataChatbotAPI()
 
         with torch.no_grad():
             while(True):
-                pending_list = api.get_pending_list()
+                try:
+                    pending_list = api.get_pending_list()
+                except ChunkedEncodingError:
+                    print("ChunkedEncodingError happened!")
+
                 if len(pending_list) == 0:
-                    time.sleep(1)
+                    time.sleep(.5)
                     continue
                 print(f"Received requests: {len(pending_list)}")
                 for i, json_in in enumerate(pending_list):
+                    caption_list = [sent for sent in json_in['text_list'] if sent.lower() != 'none']
+                    if len(caption_list) <= 0:
+                        continue
+
                     user_id = json_in['line_userId']
-                    relative_text = json_in['text_list'][-1]
-
-                    # if user_dialog_counter[user_id] >= max_dialog_time:
-                    #     continue
-
-                    if relative_text.lower().startswith('restart'):
-                        user_dialog_counter[user_id] = 0
-                        user_hist[user_id] = None
-                        user_last_reply[user_id] = []
-
+                    relative_text = caption_list[-1]
                     relative_text_idx = convert_sent2idx(relative_text, max_sent_len)
 
-                    candidate_img_idx = user_last_reply[user_id][-1] if len(user_last_reply[user_id]) > 0 \
-                        else random.randrange(10000)
-                    candidate_img_feat = ranker.feat[candidate_img_idx]
-                    response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
+                    if len(json_in['text_list']) <= 1:
+                        user_last_reply[user_id] = []
+                        user_hist[user_id] = None
 
-                    current_state_behavior, user_hist[user_id] = behavior_tracker(
-                        response_rep_behavior,
-                        user_hist[user_id][:last_k_turns] if user_hist[user_id] is not None else None)
+                    if len(user_last_reply[user_id]) > 0:
+                        candidate_img_idx = user_last_reply[user_id][-1]
+                        candidate_img_feat = ranker.feat[candidate_img_idx]
+                        response_rep_behavior = behavior_encoder(candidate_img_feat, relative_text_idx)
+                    else:
+                        response_rep_behavior = behavior_encoder.encode_text(relative_text_idx)
+
+                    current_state_behavior, user_hist[user_id] = behavior_tracker(response_rep_behavior,
+                                                                                  user_hist[user_id])
+                    user_hist[user_id] = user_hist[user_id][:last_k_turns]
 
                     reply_img_idx = ranker.k_nearest_neighbors(current_state_behavior, 10).squeeze()
 
@@ -114,4 +123,4 @@ if __name__ == '__main__':
 
                     json_out = api.send_reply_index(user_id, reply_img_idx)
                     user_last_reply[user_id].append(reply_img_idx)
-                    user_dialog_counter[user_id] += 1
+                    print(caption_list, user_last_reply[user_id])

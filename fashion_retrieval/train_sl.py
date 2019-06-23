@@ -151,17 +151,18 @@ if __name__ == '__main__':
         ranker = Ranker()
 
         # load fasttext embedding vectors
-        print("load fasttext",args.fasttext)
+        print("load fasttext", args.fasttext)
         if not os.path.isfile(args.embedding):
-            embedding = load_embedding(args.fasttext,user.captioner_relative.vocab)
+            embedding = load_embedding(args.fasttext, user.captioner_relative.vocab)
             with open(args.embedding, 'wb') as f:
-                pickle.dump(embedding,f)
+                pickle.dump(embedding, f)
         else:
             with open(args.embedding, 'rb') as f:
                 embedding = pickle.load(f)
                 print(embedding.size())
 
-        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,embedding=embedding).to(device)
+        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,
+                                  embedding=embedding).to(device)
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
         reconstructor = Reconstruct(256).to(device)
 

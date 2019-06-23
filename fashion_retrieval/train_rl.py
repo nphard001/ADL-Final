@@ -3,6 +3,7 @@ from __future__ import print_function
 import argparse
 import random
 import os
+import pickle
 
 import ipdb
 import torch
@@ -16,6 +17,7 @@ from src.model import ResponseEncoder, StateTracker
 from src.loss import TripletLossIP
 from src.monitor import ExpMonitorRl as ExpMonitor
 from src.process_fasttext import load_embedding
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train RL')
@@ -197,16 +199,15 @@ if __name__ == '__main__':
         # load fasttext embedding vectors
         print("load fasttext",args.fasttext)
         if not os.path.isfile(args.embedding):
-            embedding = load_embedding(args.fasttext,user.captioner_relative.vocab)
+            embedding = load_embedding(args.fasttext, user.captioner_relative.vocab)
             with open(args.embedding, 'wb') as f:
-                pickle.dump(embedding,f)
+                pickle.dump(embedding, f)
         else:
             with open(args.embedding, 'rb') as f:
                 embedding = pickle.load(f)
-                print(embedding.size())
 
-
-        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16,'embedding':embedding}
+        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16,
+                          'embedding': embedding}
         tracker_config = {'input_dim': 256, 'hid_dim': 512, 'out_dim': 256}
         behavior_encoder = ResponseEncoder(**encoder_config).to(device)
         behavior_tracker = StateTracker(**tracker_config).to(device)

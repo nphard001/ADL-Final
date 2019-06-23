@@ -1,13 +1,13 @@
 from __future__ import print_function
 import torch
 import torch.nn as nn
-# from pytorch_pretrained_bert import BertTokenizer, BertModel
-# from src.bert_util import InputFeatures, convert_examples_to_features
+from pytorch_pretrained_bert import BertTokenizer, BertModel
+from src.bert_util import InputFeatures, convert_examples_to_features
 from src.encoder_layers import Encoder
 
 
 class ResponseEncoder(nn.Module):
-    def __init__(self, num_emb, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,embedding=None):
+    def __init__(self, num_emb, hid_dim=256, out_dim=256, max_len=16, bert_dim=768, embedding=None):
         super(ResponseEncoder, self).__init__()
         # self.num_emb = num_emb
         # self.hid_dim = hid_dim
@@ -28,7 +28,7 @@ class ResponseEncoder(nn.Module):
         self.out_dim = hid_dim
 
         self.emb_txt = torch.nn.Embedding(embedding.size(0),
-                                            embedding.size(1))
+                                          embedding.size(1))
         self.emb_txt.weight = torch.nn.Parameter(embedding)
         self.emb_fc = nn.Linear(in_features=embedding.size(1), out_features=hid_dim, bias=True)
 
@@ -75,7 +75,7 @@ class ResponseEncoder(nn.Module):
 
     def forward(self, img_rep, text):
         x2 = self.encode_text(text)
-        x = img_rep + x2
+        x = (img_rep + x2) / 2
         return x
         # text_rep = self.encode_text(text)
         # return img_rep + text_rep
