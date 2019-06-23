@@ -69,7 +69,30 @@ ChatbotMakoMgr = MakoManager(['mako'])
 ChatbotMako = ChatbotMakoMgr.render
 def get_common_nav():
     return ChatbotMako(r'<%include file="nav.html"/>')
-    
+
+def HTMLTable(object_list: list, num_each_row: int=8, grid_class: str='grid_image'):
+    return ChatbotMako(r'''
+<table>
+% for i_grid, html in enumerate(object_list):
+    % if i_grid%num_each_row==0:
+    <tr>
+    % endif
+    <td>
+    <div class='${grid_class}'>
+    ${html}
+    </div>
+    </td>
+    % if (i_grid+1)%num_each_row==0:
+    </tr>
+    % endif
+% endfor
+</table>
+    '''.strip(), {
+        'object_list': object_list,
+        'num_each_row': num_each_row,
+        'grid_class': grid_class,
+    })
+
 def HTMLImageTable(object_list: list, num_each_row: int=8, grid_class: str='random_image'):
     return ChatbotMako(r'''
 <table>

@@ -3,17 +3,48 @@ from nphard001.web import *
 from nphard001.img import *
 from nphard001.api_data import *
 from nphard001.attr_parser import AttrParser
-from host_data.models import AttrMetadata
+from host_data.models import *
 import numpy as np
 from django.contrib.staticfiles.templatetags.staticfiles import static
 _MakoMgr = MakoManager(['mako'])
 _Mako = _MakoMgr.render
 urlpatterns = []
 def _ApplyURLPatterns():
+    urlpatterns.append(path(r'grid', grid_view)) # default
+    urlpatterns.append(path(r'grid/<int:M>', grid_view))
     urlpatterns.append(path(r'random/<int:N>/<int:M>', random_view))
     urlpatterns.append(path(r'image/<slug:img_type>/train/<int:train_idx>', image_train_view))
     urlpatterns.append(path(r'image/<slug:img_type>/<slug:ctg>/<int:img_id>', image_view))
     urlpatterns.append(url(r'attributedata', attributedata_view))
+
+@csrf_exempt
+def grid_view(request, M=20):
+    r'''view by its resnet feature'''
+    N = min(10000, M**2)
+    id_background = np.random.choice(10000, size=max(1000, N), replace=False)
+    
+    # logic 2d grid
+    grid_2d = GetGridResnet2d(id_background, M, M)
+    
+    # pack 1d object_list
+    object_list = []
+    for row in grid_2d:
+        for col in row:
+            img_id = col['img_id']
+            title = col['title']
+            url = f'https://linux7.csie.org:3721/data/image/raw/train/{img_id}'
+            object_list.append(f'<img src="{url}" title="{title}">')
+    
+    # ---
+    title = 'grid_view'
+    nav = get_common_nav()
+    body = HTMLTable(object_list, num_each_row=M)
+    raw = '\n'.join([
+        r'<%inherit file="basic.html"/>',
+    ]).strip()
+    context = locals().copy()
+    response = HttpResponse(ChatbotMako(raw, context).encode('utf-8'))
+    return response
 
 @csrf_exempt
 def random_view(request, N=18, M=3):

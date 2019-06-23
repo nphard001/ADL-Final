@@ -33,3 +33,4 @@ setup_symlink_static_model_fashion_retrieval_old: setup_symlink_static_model_%:
 install_chatbot:
 	$(PIP) install line-bot-sdk
 	$(PIP) install Pillow
+	$(PIP) install sklearn

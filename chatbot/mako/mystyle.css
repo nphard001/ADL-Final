@@ -27,3 +27,7 @@ body, table, select, input, img {
   width: 25vw;
   overflow-y: scroll;
 }
+.grid_image > img {
+  height: 48px;
+  width: 48px;
+}
