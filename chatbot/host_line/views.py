@@ -61,7 +61,7 @@ def line_reply(request):
             url_big = json_body.get('url', url_small)
             line_bot_api.reply_message(
                 json_body['reply_token'],
-                ImageSendMessage(url_small, url_big)
+                ImageSendMessage(url_big, url_small)
             )
         else:
             return HttpResponseBadRequest()

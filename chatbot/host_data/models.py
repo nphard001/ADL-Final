@@ -11,7 +11,7 @@ class AttrMetadata(BaseModel):
     img_path = models.TextField(default='None')
     dsr_path = models.TextField(default='None')
     @staticmethod
-    def GetImgBinary(img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694):
+    def GetImgBinary(img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694, tsize: int=240):
         obj = AttrMetadata.objects.filter(category=ctg, img_id=img_id)[0]
         if img_type=='raw':
             with open(obj.img_path, 'rb') as f:
@@ -19,7 +19,7 @@ class AttrMetadata(BaseModel):
         elif img_type=='thumbnail':
             # image via Pillow
             img = Image.open(obj.img_path)
-            img.thumbnail([120, 120]) # it's inplace
+            img.thumbnail([tsize, tsize]) # it's inplace
             img_bytes = BytesIO()
             img.save(img_bytes, 'jpeg')
             return img_bytes.getvalue()
@@ -176,9 +176,7 @@ def GetUserDialog(line_userId: str):
         # record last pending pk
         user.pk_last_pending = ent_last_pending.id
         user.save()
-    print(f'GetUserDialog({line_userId})')
-    print(token)
-    print(text_list)
+    print(f'GetUserDialog({line_userId}) got len(text_list)={len(text_list)}')
     return text_list, token
 
 def GetPendingList():

@@ -65,6 +65,13 @@ def RawResponse(x: str):
     r'''respond the string directly (mostly for test or APIs)'''
     return HttpResponse(x.encode('utf-8'))
 
+def RequestGET(request, k: str, d=None):
+    try:
+        v = request.GET[k]
+    except KeyError:
+        v = d
+    return v
+
 ChatbotMakoMgr = MakoManager(['mako'])
 ChatbotMako = ChatbotMakoMgr.render
 def get_common_nav():

@@ -26,13 +26,15 @@ def grid_view(request, M=20):
     # logic 2d grid
     grid_2d = GetGridResnet2d(id_background, M, M, mark_list=[0, 9999])
     
+    tsize = int(RequestGET(request, 'size', 48))
+    
     # pack 1d object_list
     object_list = []
     for row in grid_2d:
         for col in row:
             img_id = col['img_id']
             title = col['title']
-            url = f'https://linux7.csie.org:3721/data/image/raw/train/{img_id}'
+            url = f'https://linux7.csie.org:3721/data/image/thumbnail/train/{img_id}?size={tsize}'
             object_list.append(f'<img src="{url}" title="{title}">')
     
     # ---
@@ -117,21 +119,28 @@ def attributedata_view(request):
 
 @cache_page(60 * 60 * 24)
 @csrf_exempt
+def image_view(request, img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694):
+    if img_type not in ['raw', 'thumbnail']:
+        return HttpResponseBadRequest()
+    size = RequestGET(request, 'size')
+    if size:
+        img = AttrMetadata.GetImgBinary(img_type, ctg, img_id, int(size))
+    else:
+        img = AttrMetadata.GetImgBinary(img_type, ctg, img_id)
+    return HttpResponse(img, content_type="image/jpeg")
+
+@cache_page(60 * 60 * 24)
+@csrf_exempt
 def image_train_view(request, img_type: str, train_idx: int):
     if any([img_type not in ['raw', 'thumbnail'],
         train_idx<0 or train_idx>9999]):
         return HttpResponseBadRequest()
     filename = linecache.getline('fashion_retrieval/dataset/train_im_names.txt', train_idx+1)
     ctg, img_id = AttrFilenameSplit(filename)
-    img_id = int(img_id)
-    return HttpResponse(AttrMetadata.GetImgBinary(img_type, ctg, img_id), content_type="image/jpeg")
+    return image_view(request, img_type, ctg, int(img_id))
+    # img_id = int(img_id)
+    # return HttpResponse(AttrMetadata.GetImgBinary(img_type, ctg, img_id), content_type="image/jpeg")
 
-@cache_page(60 * 60 * 24)
-@csrf_exempt
-def image_view(request, img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694):
-    if img_type not in ['raw', 'thumbnail']:
-        return HttpResponseBadRequest()
-    return HttpResponse(AttrMetadata.GetImgBinary(img_type, ctg, img_id), content_type="image/jpeg")
 
 # ================================================================
 _ApplyURLPatterns()
