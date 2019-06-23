@@ -15,7 +15,7 @@ from src.ranker import Ranker
 from src.model import ResponseEncoder, StateTracker
 from src.loss import TripletLossIP
 from src.monitor import ExpMonitorRl as ExpMonitor
-
+from src.process_fasttext import load_embedding
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train RL')
@@ -29,6 +29,10 @@ def parse_args():
     parser.add_argument('--log-interval', type=int, default=30, help='how many batches to logging training status')
     parser.add_argument('--neg-num', type=int, default=5, help='number of negative candidates in the denominator')
     parser.add_argument('--model-folder', type=str, default="models/")
+    parser.add_argument('--fasttext', type=str, default="features/crawl-300d-2M.vec",
+                        help='fasttext embedding ')
+    parser.add_argument('--embedding', type=str, default="features/embedding.pkl",
+                        help='processed embedding vectors')
 
     parser.add_argument('--top-k', type=int, default=4, help='top k candidate for policy and nearest neighbors')
     parser.add_argument('--pretrained-model', type=str, default="models/sl-25.pt", help='path to pretrained sl model')
@@ -190,7 +194,19 @@ if __name__ == '__main__':
         user = SynUser()
         ranker = Ranker()
 
-        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16}
+        # load fasttext embedding vectors
+        print("load fasttext",args.fasttext)
+        if not os.path.isfile(args.embedding):
+            embedding = load_embedding(args.fasttext,user.captioner_relative.vocab)
+            with open(args.embedding, 'wb') as f:
+                pickle.dump(embedding,f)
+        else:
+            with open(args.embedding, 'rb') as f:
+                embedding = pickle.load(f)
+                print(embedding.size())
+
+
+        encoder_config = {'num_emb': user.vocabSize + 1, 'hid_dim': 256, 'out_dim': 256, 'max_len': 16,'embedding':embedding}
         tracker_config = {'input_dim': 256, 'hid_dim': 512, 'out_dim': 256}
         behavior_encoder = ResponseEncoder(**encoder_config).to(device)
         behavior_tracker = StateTracker(**tracker_config).to(device)

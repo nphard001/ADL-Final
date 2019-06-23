@@ -4,6 +4,7 @@ import argparse
 import math
 import os
 import random
+import pickle
 
 import ipdb
 import torch
@@ -15,7 +16,7 @@ from src.model import ResponseEncoder, StateTracker, Reconstruct
 from src.monitor import ExpMonitorSl as ExpMonitor
 from src.ranker import Ranker
 from src.sim_user import SynUser
-
+from src.process_fasttext import load_embedding
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Interactive Image Retrieval')
@@ -27,6 +28,11 @@ def parse_args():
                         help='number of epochs to train')
     parser.add_argument('--model-folder', type=str, default="models/",
                         help='triplet loss margin ')
+    parser.add_argument('--fasttext', type=str, default="features/crawl-300d-2M.vec",
+                        help='fasttext embedding ')
+    parser.add_argument('--embedding', type=str, default="features/embedding.pkl",
+                        help='processed embedding vectors')
+
     # learning
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate')
@@ -138,13 +144,24 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(args.seed)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
+
         print(f"Using device: {device}")
 
         user = SynUser()
         ranker = Ranker()
 
-        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768).to(device)
+        # load fasttext embedding vectors
+        print("load fasttext",args.fasttext)
+        if not os.path.isfile(args.embedding):
+            embedding = load_embedding(args.fasttext,user.captioner_relative.vocab)
+            with open(args.embedding, 'wb') as f:
+                pickle.dump(embedding,f)
+        else:
+            with open(args.embedding, 'rb') as f:
+                embedding = pickle.load(f)
+                print(embedding.size())
+
+        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,embedding=embedding).to(device)
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
         reconstructor = Reconstruct(256).to(device)
 
@@ -153,7 +170,7 @@ if __name__ == '__main__':
         optimizer_recon = optim.Adam(reconstructor.parameters(), lr=args.lr)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
         classification_criterion = nn.CrossEntropyLoss()
-        
+
         for epoch in range(1, args.epochs + 1):
             train_val_epoch(train=True)
             with torch.no_grad():

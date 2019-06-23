@@ -7,7 +7,7 @@ from src.encoder_layers import Encoder
 
 
 class ResponseEncoder(nn.Module):
-    def __init__(self, num_emb, hid_dim=256, out_dim=256, max_len=16, bert_dim=768):
+    def __init__(self, num_emb, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,embedding=None):
         super(ResponseEncoder, self).__init__()
         # self.num_emb = num_emb
         # self.hid_dim = hid_dim
@@ -27,7 +27,12 @@ class ResponseEncoder(nn.Module):
         self.rep_dim = hid_dim
         self.out_dim = hid_dim
 
-        self.emb_txt = torch.nn.Embedding(num_embeddings=num_emb, embedding_dim=hid_dim * 2 )
+        self.emb_txt = torch.nn.Embedding(embedding.size(0),
+                                            embedding.size(1))
+        self.emb_txt.weight = torch.nn.Parameter(embedding)
+        self.emb_fc = nn.Linear(in_features=embedding.size(1), out_features=hid_dim, bias=True)
+
+        # self.emb_txt = torch.nn.Embedding(num_embeddings=num_emb, embedding_dim=hid_dim * 2 )
         self.bn2 = nn.BatchNorm1d(num_features=hid_dim * 2)
         self.cnn_txt = torch.nn.Conv1d(max_len, hid_dim * 2, 2, bias=True)
         self.fc_txt = nn.Linear(in_features=hid_dim * 2, out_features=hid_dim, bias=False)
@@ -48,9 +53,9 @@ class ResponseEncoder(nn.Module):
     def encode_text(self, text_input):
         """
         Given a list of natural language text, returns the encoding from BERT
-        :param text_input: size N list of text responses 
+        :param text_input: size N list of text responses
         :return: N(batch_size) * M(out_dim) tensor
-        
+
         TODO : use a finetuned bert model instead to obtain better word representations
         """
         # features = convert_examples_to_features(text_input, self.max_len, self.tokenizer)
@@ -59,7 +64,9 @@ class ResponseEncoder(nn.Module):
         # _, pooled_output = self.bert_model(all_input_ids, token_type_ids=None, attention_mask=all_input_mask)
         # text_rep = self.txt_linear(pooled_output).to(self.device)
         # return text_rep
-        x = self.emb_txt(text_input)
+        with torch.no_grad():
+            x = self.emb_txt(text_input)
+        x = self.emb_fc(x)
         x = self.cnn_txt(x)
         x, _ = torch.max(x, dim=2)
         # x = x.squeeze(2)
