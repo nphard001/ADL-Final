@@ -3,6 +3,7 @@ from nphard001.img import *
 from nphard001.api_data import *
 urlpatterns = []
 def _ApplyURLPatterns():
+    urlpatterns.append(url(r'profile', line_profile))
     urlpatterns.append(url(r'webhook', line_webhook))
     urlpatterns.append(url(r'reply', line_reply))
     urlpatterns.append(url(r'identity', identity_view))
@@ -26,6 +27,23 @@ def identity_view(request):
     info('identity_view got url:', url_obj)
     # mostly it's jpeg, but text/json response also works (hopefully)
     return HttpResponse(HTTPGet(url_obj).content, content_type="image/jpeg")
+
+@csrf_exempt
+def line_profile(request):
+    json_body = json.loads(request.body.decode('utf-8'))
+    info('line_profile, got json:\n'+json.dumps(json_body, indent=1))
+    report = {'state': 'done'}
+    try:
+        line_userId = json_body['line_userId']
+        rsp = line_bot_api._get(
+            '/v2/bot/profile/{user_id}'.format(user_id=line_userId),
+            timeout=None
+        )
+        report['result'] = rsp.json
+    except BaseException as e:
+        report['state'] = 'error'
+        report['BaseException'] = str(e)
+    return JsonResponse(report)
 
 @csrf_exempt
 def line_reply(request):
