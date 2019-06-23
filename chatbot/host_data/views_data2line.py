@@ -9,6 +9,7 @@ def _ApplyURLPatterns():
 # ================================================================
 @csrf_exempt
 def reply_index_view(request):
+    r'''reply image index from GPU server'''
     json_body = json.loads(request.body.decode('utf-8'))
     line_userId = json_body['line_userId']
     img_idx = json_body['img_idx']
@@ -42,20 +43,14 @@ def reply_index_view(request):
     ).save()
     return JsonResponse(return_json, safe=False)
 
+
+@never_cache
 @csrf_exempt
 def pending_list_view(request):
-    json_body = json.loads(request.body.decode('utf-8'))
-    pending_list = []
-    for ent in UserProfile.objects.all():
-        line_userId = ent.line_userId
-        text_list, token = GetUserDialog(line_userId)
-        if token:
-            print(f'need reply ({line_userId}, {token})')
-            pending_list.append({
-                'line_userId': line_userId,
-                'text_list': text_list,
-                'token': token,
-            })
+    r'''return data to GPU server'''
+    # DO NOT ignore the request!!!
+    _ = json.loads(request.body.decode('utf-8'))
+    pending_list = GetPendingList()
     return JsonResponse({
         'state': 'done',
         'pending_list': pending_list,
@@ -64,6 +59,7 @@ def pending_list_view(request):
 
 @csrf_exempt
 def line_event_view(request):
+    r'''get line event from heroku'''
     json_body = json.loads(request.body.decode('utf-8'))
     event_dict = json.loads(json_body['event_repr'])
     
@@ -72,14 +68,14 @@ def line_event_view(request):
     if event_dict['source']['type'] != 'user':
         print('not user event, ignored')
         return HttpResponse()
-    obj = UserEvent.from_event_dict(event_dict)
-    obj.save()
+    obj = UserEvent.create_from_event_dict(event_dict)
     print('UserEvent object:')
     print(json.dumps(obj.to_dict(), indent=1))
     return HttpResponse()
 
 @csrf_exempt
 def user_text_view(request):
+    r'''(deprecated) find text_list related to some user'''
     json_body = json.loads(request.body.decode('utf-8'))
     object_set = UserEvent.objects
     object_set = object_set.filter(line_type='message')

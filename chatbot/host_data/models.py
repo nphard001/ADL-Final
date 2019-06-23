@@ -1,6 +1,7 @@
-import pickle
+import os, sys, json, pickle
 from nphard001.img import *
 from nphard001.django_model import *
+from nphard001.api import *
 from urllib.parse import quote
 
 
@@ -30,7 +31,16 @@ class UserProfile(BaseModel):
     line_userId = models.TextField(default='None', db_index=True)
     mode = models.TextField(default='auto', db_index=True) # auto / debug
     pk_last_pending = models.IntegerField(default=0, db_index=True)
+    def reset_dialog(self):
+        self.dialog_end = timezone.now()
+        self.save()
 
+def _ReplyText(reply_token, text):
+    return HTTPJson('https://nphard001.herokuapp.com/line/reply', {
+        'type': 'text',
+        'reply_token': reply_token,
+        'text': text,
+    })
 class UserEvent(BaseModel):
     created = models.DateTimeField(auto_now_add=True, db_index=True)
     state = models.TextField(default='pending', db_index=True) # pending / done
@@ -39,6 +49,7 @@ class UserEvent(BaseModel):
     line_timestamp = models.IntegerField(default=-1, db_index=True)
     line_type = models.TextField(default='None', db_index=True)
     line_event = models.TextField(default='None')
+    line_text = models.TextField(default='None')
     
     def _get_line_text(self):
         try:
@@ -46,19 +57,52 @@ class UserEvent(BaseModel):
             return evd['message']['text']
         except KeyError:
             return None
-    line_text = property(_get_line_text)
+
     @classmethod
-    def from_event_dict(cls, event_dict: dict):
+    def create_from_event_dict(cls, event_dict: dict):
+        # parse UserEvent object
         lineID = event_dict['source']['userId']
+        try:
+            text = event_dict['message']['text']
+        except KeyError:
+            text = 'None'
         obj = cls(
             line_userId = lineID,
             line_replyToken = event_dict['replyToken'],
             line_timestamp = event_dict['timestamp'],
             line_type = event_dict['type'],
             line_event = json.dumps(event_dict),
+            line_text = text
         )
-        if UserProfile.objects.filter(line_userId=lineID).count()==0:
-            UserProfile(line_userId=lineID).save()
+        
+        # find user
+        user_set = UserProfile.objects.filter(line_userId=lineID)
+        if user_set.count()==0:
+            user = UserProfile(line_userId=lineID)
+            user.save()
+        else:
+            user = user_set[0]
+        
+        # run command
+        if text[0]=='/' or text[0]=='\\':
+            cmd = text[1:]
+            print('command!')
+            print(cmd)
+            obj.state = 'command'
+            if cmd=='reset':
+                user.reset_dialog()
+                reply = 'dialog reset, server time: '+str(user.dialog_end)
+            elif cmd=='dialog':
+                text_list, token = GetUserDialog(lineID)
+                reply = json.dumps({
+                    'text_list': text_list,
+                    'token': token,
+                })
+            else:
+                reply = f'command not found: {cmd}'
+            _ReplyText(obj.line_replyToken, reply)
+        
+        obj.save()
         return obj
 
 class UserReplyImage(BaseModel):
@@ -102,11 +146,14 @@ class AttrTrain(BaseModel):
             cls.objects.create(tag=tag, idx=idx, info=info)
 
 # ================================================================
+
 def GetUserDialog(line_userId: str):
     r'''token=None means all done'''
+    user = UserProfile.objects.get(line_userId=line_userId)
     object_set = UserEvent.objects
     object_set = object_set.filter(line_userId=line_userId)
     object_set = object_set.filter(line_type='message')
+    object_set = object_set.filter(created__gte=user.dialog_end)
     text_list = []
     ent_last_pending = None
     token = None
@@ -127,11 +174,27 @@ def GetUserDialog(line_userId: str):
         token = ent_last_pending.line_replyToken
         
         # record last pending pk
-        user = UserProfile.objects.get(line_userId=line_userId)
         user.pk_last_pending = ent_last_pending.id
         user.save()
-        
+    print(f'GetUserDialog({line_userId})')
+    print(token)
+    print(text_list)
     return text_list, token
+
+def GetPendingList():
+    pending_list = []
+    for ent in UserProfile.objects.all():
+        line_userId = ent.line_userId
+        text_list, token = GetUserDialog(line_userId)
+        if token:
+            print(f'need reply ({line_userId}, {token})')
+            pending_list.append({
+                'line_userId': line_userId,
+                'text_list': text_list,
+                'token': token,
+            })
+    print(f'pending_list len={len(pending_list)}')
+    return pending_list
 
 def GetTokenUpdateUserDone(line_userId: str):
     user = UserProfile.objects.get(line_userId=line_userId)
@@ -148,7 +211,12 @@ def GetTrainURLByIndex(train_idx: int):
     url = _wrap(f'https://linux7.csie.org:3721/data/image/raw/train/{train_idx}')
     return url_240x240, url
 
-def GetGridResnet2d(id_list, nrow: int, ncol: int):
+def GetGridResnet2d(id_list, nrow: int, ncol: int, mark_list: Optional[List]=None):
+    # mark set
+    if mark_list:
+        id_list.extend(mark_list)
+        id_list = UniqueList(id_list)
+    
     # fetch features
     res256 = AttrTrain.get_attr_list(id_list, tag='256embedding')
     res256_pca = AttrTrain.get_attr_list(
@@ -169,7 +237,7 @@ def GetGridResnet2d(id_list, nrow: int, ncol: int):
         best = id_list[0]
         best_dist = 9999.99
         for i, img_id in enumerate(id_list):
-            dist = abs(val1[i]-qval1) + abs(val2[i]-qval2)
+            dist = (val1[i]-qval1)**2 + (val2[i]-qval2)**2
             if best_dist > dist:
                 best = img_id
                 best_dist = dist
@@ -187,6 +255,6 @@ def GetGridResnet2d(id_list, nrow: int, ncol: int):
                 'row_val': row_val,
                 'col_val': col_val,
                 'img_id': img_id,
-                'title': print2str(i, j, round(row_val, 4), round(col_val, 4))
+                'title': print2str(f'img_id[{img_id}]', i, j, round(row_val, 4), round(col_val, 4)).strip()
             }
     return grid_2d

@@ -21,10 +21,10 @@ def _ApplyURLPatterns():
 def grid_view(request, M=20):
     r'''view by its resnet feature'''
     N = min(10000, M**2)
-    id_background = np.random.choice(10000, size=max(1000, N), replace=False)
+    id_background = [int(x) for x in np.random.choice(10000, size=max(1000, N), replace=False)]
     
     # logic 2d grid
-    grid_2d = GetGridResnet2d(id_background, M, M)
+    grid_2d = GetGridResnet2d(id_background, M, M, mark_list=[0, 9999])
     
     # pack 1d object_list
     object_list = []
