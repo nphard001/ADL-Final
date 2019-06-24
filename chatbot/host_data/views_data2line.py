@@ -2,11 +2,83 @@ from host_data.views import *
 from host_data.models import *
 from nphard001.api import *
 def _ApplyURLPatterns():
+    urlpatterns.append(path(r'demo/reply.jpg', reply_jpg))
+    urlpatterns.append(path(r'user', user_list_view))
+    urlpatterns.append(path(r'user/<slug:lineid>', user_dialog_view))
     urlpatterns.append(path(r'line_event', line_event_view))
     urlpatterns.append(path(r'user_text', user_text_view))
     urlpatterns.append(path(r'pending_list', pending_list_view))
     urlpatterns.append(path(r'reply_index', reply_index_view))
 # ================================================================
+@csrf_exempt
+def reply_jpg(request, idx_list=[1143, 5774, 7451, 270, 7592, 6872, 7794, 3590]):
+    for train_idx in idx_list:
+        filename = linecache.getline('fashion_retrieval/dataset/train_im_names.txt', train_idx+1)
+        ctg, img_id = AttrFilenameSplit(filename)
+        img = AttrMetadata.GetImgBinary(img_type, ctg, img_id, request)
+        # WIP
+        break
+    return HttpResponse(img, content_type="image/jpeg")
+
+@csrf_exempt
+def user_list_view(request):
+    object_list = []
+    for user in UserProfile.objects.all():
+        lineid = user.line_userId
+        url = f'https://linux7.csie.org:3721/data/user/{lineid}'
+        object_list.append(f'<a href="{url}">{str(user)}</a>')
+    
+    # ---
+    title = 'user list'
+    nav = get_common_nav()
+    body = HTMLTable(object_list, num_each_row=1, grid_class='user_list_row')
+    raw = '\n'.join([
+        r'<%inherit file="basic.html"/>',
+    ]).strip()
+    context = locals().copy()
+    response = HttpResponse(ChatbotMako(raw, context).encode('utf-8'))
+    return response
+
+
+@csrf_exempt
+def user_dialog_view(request, lineid):
+    object_list = []
+    reply_dict = {}
+    user = UserProfile.objects.get(line_userId=lineid)
+    
+    # align reply image idx
+    for reply_obj in UserReplyImage.objects.filter(line_userId=lineid):
+        idx = reply_obj.train_idx
+        info_dict = json.loads(reply_obj.info)
+        reply_token = info_dict['tosend']['reply_token']
+        reply_dict[reply_token] = f'<img src="https://linux7.csie.org:3721/data/image/thumbnail/train/{idx}?size=128&text={idx}">'
+    
+    # dialog text
+    object_set = UserEvent.objects
+    object_set = object_set.filter(line_userId=lineid)
+    object_set = object_set.filter(line_type='message')
+    for evt_object in object_set.order_by('created'):
+        txt = evt_object.line_text
+        if type(txt) != type('text msg') or txt == 'None':
+            continue
+        object_list.append(f'{txt}'+(f' [{evt_object.state}]' if evt_object.state!='done' else ''))
+        object_list.append(reply_dict.get(evt_object.line_replyToken, ''))
+    # for user in UserProfile.objects.all():
+    #     lineid = user.line_userId
+    #     url = f'https://linux7.csie.org:3721/data/{lineid}'
+    #     object_list.append(f'<a href="{url}">{str(user)}</a>')
+    
+    # ---
+    title = 'user dialog'
+    nav = get_common_nav()
+    body = HTMLTable(object_list, num_each_row=2, grid_class='user_dialog')
+    raw = '\n'.join([
+        r'<%inherit file="basic.html"/>',
+    ]).strip()
+    context = locals().copy()
+    response = HttpResponse(ChatbotMako(raw, context).encode('utf-8'))
+    return response
+
 @csrf_exempt
 def reply_index_view(request):
     r'''reply image index from GPU server'''

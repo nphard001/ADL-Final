@@ -23,3 +23,6 @@ fr_train_sl:
 frm_train_sl:
 	python -m fashion_retrieval.train_sl --log-interval=50 --lr=0.001  --batch-size=128 --model-folder="models/"
 
+output_gif_len8: output_gif_%:
+	cd /tmp2 && ffmpeg -i $*.mov -s 444x738 \
+	-pix_fmt rgb24 -r 10 -f gif - | gifsicle --optimize=3 --delay=3 > $*.gif

@@ -122,11 +122,7 @@ def attributedata_view(request):
 def image_view(request, img_type:str='raw', ctg: str='earrings_drop', img_id: int=1694):
     if img_type not in ['raw', 'thumbnail']:
         return HttpResponseBadRequest()
-    size = RequestGET(request, 'size')
-    if size:
-        img = AttrMetadata.GetImgBinary(img_type, ctg, img_id, int(size))
-    else:
-        img = AttrMetadata.GetImgBinary(img_type, ctg, img_id)
+    img = AttrMetadata.GetImgBinary(img_type, ctg, img_id, request)
     return HttpResponse(img, content_type="image/jpeg")
 
 @cache_page(60 * 60 * 24)

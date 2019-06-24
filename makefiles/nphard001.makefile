@@ -23,6 +23,8 @@ linux7_full:
 	rsync -avzh ../$(PROJECT)/ $(HOST):$(HOST_PROJECT) $(RSYNC_EXCLUDE)
 linux7_static:
 	rsync -avzh ../$(PROJECT)/static/ $(HOST):$(HOST_PROJECT)static/
+linux7_demo:
+	rsync -avzh ../$(PROJECT)/static/demo/ $(HOST):$(HOST_PROJECT)static/demo/
 
 FORWARDER = /Users/qtwu/Drive/Active/forwarder
 forwarder_auto forwarder_sync_adl forwarder_sync_heroku forwarder_hang_heroku_log: forwarder_%:
