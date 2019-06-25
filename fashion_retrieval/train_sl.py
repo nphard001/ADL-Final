@@ -52,8 +52,6 @@ def parse_args():
 
 def train_val_epoch(train: bool):
     print(('Train' if train else 'Eval') + f'\tepoch #{epoch}')
-    if train:
-        encoder.set_rl_mode()
     encoder.train(train)
     tracker.train(train)
     reconstructor.train(train)

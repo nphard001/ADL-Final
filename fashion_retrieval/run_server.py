@@ -89,7 +89,7 @@ if __name__ == '__main__':
                     continue
                 print(f"Received requests: {len(pending_list)}")
                 for i, json_in in enumerate(pending_list):
-                    caption_list = [sent for sent in json_in['text_list'] if sent.lower() != 'none']
+                    caption_list = [sent.lower() for sent in json_in['text_list'] if sent.lower() != 'none']
                     if len(caption_list) <= 0:
                         continue
 

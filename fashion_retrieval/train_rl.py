@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=633, help='random seed')
     parser.add_argument('--log-interval', type=int, default=30, help='how many batches to logging training status')
     parser.add_argument('--neg-num', type=int, default=5, help='number of negative candidates in the denominator')
-    parser.add_argument('--model-folder', type=str, default="models/")
+    parser.add_argument('--model-folder', type=str, required=True)
     parser.add_argument('--fasttext', type=str, default="features/crawl-300d-2M.vec",
                         help='fasttext embedding ')
     parser.add_argument('--embedding', type=str, default="features/embedding.pkl",
@@ -106,8 +106,8 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
 
 def train_val_rl(epoch, train: bool):
     print(('Train' if train else 'Eval') + f'\tEpoch #{epoch}')
-    # if train:
-    #     behavior_encoder.set_rl_mode()
+    if train:
+        behavior_encoder.set_rl_mode()
     behavior_encoder.train(train)
     behavior_tracker.train(train)
     target_encoder.eval()
@@ -179,6 +179,8 @@ def train_val_rl(epoch, train: bool):
         if batch_idx % args.log_interval == 0 and train:
             print('# candidate ranking #')
             exp_monitor_candidate.print_interval(epoch, batch_idx, num_batch)
+            # target_encoder.load_state_dict(behavior_encoder.state_dict())
+            # target_tracker.load_state_dict(behavior_tracker.state_dict())
 
     print('# candidate ranking #')
     exp_monitor_candidate.print_all(epoch)
@@ -197,7 +199,7 @@ if __name__ == '__main__':
         ranker = Ranker()
 
         # load fasttext embedding vectors
-        print("load fasttext",args.fasttext)
+        print("load fasttext", args.fasttext)
         if not os.path.isfile(args.embedding):
             embedding = load_embedding(args.fasttext, user.captioner_relative.vocab)
             with open(args.embedding, 'wb') as f:
