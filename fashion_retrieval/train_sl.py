@@ -18,13 +18,14 @@ from src.ranker import Ranker
 from src.sim_user import SynUser
 from src.process_fasttext import load_embedding
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Interactive Image Retrieval')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                         help='input batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=64, metavar='N',
+    parser.add_argument('--test-batch-size', type=int, default=128, metavar='N',
                         help='input batch size for testing')
-    parser.add_argument('--epochs', type=int, default=25, metavar='N',
+    parser.add_argument('--epochs', type=int, default=100, metavar='N',
                         help='number of epochs to train')
     parser.add_argument('--model-folder', type=str, default="models/",
                         help='triplet loss margin ')
@@ -121,7 +122,14 @@ def train_val_epoch(train: bool):
             optimizer_encoder.zero_grad()
             optimizer_tracker.zero_grad()
             optimizer_recon.zero_grad()
-            mean_loss = torch.stack(outs).mean() + loss_cls
+
+            ori_weight = 1
+            cls_weight = 3
+            weight_sum = ori_weight + cls_weight
+            ori_weight /= weight_sum
+            cls_weight /= weight_sum
+
+            mean_loss = torch.stack(outs).mean() * ori_weight + loss_cls * cls_weight
             mean_loss.backward(retain_graph=True)
             optimizer_encoder.step()
             optimizer_tracker.step()
@@ -159,14 +167,14 @@ if __name__ == '__main__':
                 embedding = pickle.load(f)
                 print(embedding.size())
 
-        encoder = ResponseEncoder(user.vocabSize+1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,
+        encoder = ResponseEncoder(user.vocabSize + 1, hid_dim=256, out_dim=256, max_len=16, bert_dim=768,
                                   embedding=embedding).to(device)
         tracker = StateTracker(input_dim=256, hid_dim=512, out_dim=256).to(device)
         reconstructor = Reconstruct(256).to(device)
 
-        optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr)
-        optimizer_tracker = optim.Adam(tracker.parameters(), lr=args.lr)
-        optimizer_recon = optim.Adam(reconstructor.parameters(), lr=args.lr)
+        optimizer_encoder = optim.Adam(encoder.parameters(), lr=args.lr, amsgrad=True)
+        optimizer_tracker = optim.Adam(tracker.parameters(), lr=args.lr, amsgrad=True)
+        optimizer_recon = optim.Adam(reconstructor.parameters(), lr=args.lr, amsgrad=True)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
         classification_criterion = nn.CrossEntropyLoss()
 

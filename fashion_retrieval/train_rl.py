@@ -21,13 +21,13 @@ from src.process_fasttext import load_embedding
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train RL')
-    parser.add_argument('--batch-size', type=int, default=16, help='input batch size for training')
-    parser.add_argument('--test-batch-size', type=int, default=128, help='input batch size for testing')
-    parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train')
+    parser.add_argument('--batch-size', type=int, default=128, help='input batch size for training')
+    parser.add_argument('--test-batch-size', type=int, default=256, help='input batch size for testing')
+    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train')
     # learning
     parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
     parser.add_argument('--tau', type=float, default=1, help='softmax temperature')
-    parser.add_argument('--seed', type=int, default=633, help='random seed')
+    parser.add_argument('--seed', type=int, default=630, help='random seed')
     parser.add_argument('--log-interval', type=int, default=30, help='how many batches to logging training status')
     parser.add_argument('--neg-num', type=int, default=5, help='number of negative candidates in the denominator')
     parser.add_argument('--model-folder', type=str, required=True)
@@ -38,10 +38,11 @@ def parse_args():
 
     parser.add_argument('--top-k', type=int, default=4, help='top k candidate for policy and nearest neighbors')
     parser.add_argument('--pretrained-model', type=str, default="models/sl-25.pt", help='path to pretrained sl model')
-    parser.add_argument('--triplet-margin', type=float, default=0.1, metavar='EV', help='triplet loss margin ')
+    parser.add_argument('--triplet-margin', type=float, default=0.05, metavar='EV', help='triplet loss margin ')
     # exp. control
     parser.add_argument('--train-turns', type=int, default=5, help='dialog turns for training')
     parser.add_argument('--test-turns', type=int, default=5, help='dialog turns for testing')
+    parser.add_argument('--not_fix_project', action='store_true')
     return parser.parse_args()
 
 
@@ -106,7 +107,7 @@ def rollout_search(behavior_state, target_state, cur_turn, max_turn, user_img_id
 
 def train_val_rl(epoch, train: bool):
     print(('Train' if train else 'Eval') + f'\tEpoch #{epoch}')
-    if train:
+    if train and not args.not_fix_project:
         behavior_encoder.set_rl_mode()
     behavior_encoder.train(train)
     behavior_tracker.train(train)
@@ -222,9 +223,14 @@ if __name__ == '__main__':
         target_encoder.load_state_dict(checkpoint['encoder'])
         target_tracker.load_state_dict(checkpoint['tracker'])
 
-        optimizer_encoder = optim.Adam(behavior_encoder.parameters(), lr=args.lr)
-        optimizer_tracker = optim.Adam(behavior_tracker.parameters(), lr=args.lr)
+        optimizer_encoder = optim.Adam(behavior_encoder.parameters(), lr=args.lr, amsgrad=True)
+        optimizer_tracker = optim.Adam(behavior_tracker.parameters(), lr=args.lr, amsgrad=True)
         triplet_loss = TripletLossIP(margin=args.triplet_margin).to(device)
+
+        if not os.path.isdir(args.model_folder):
+            os.mkdir(args.model_folder)
+        elif len(os.listdir(args.model_folder)) > 0:
+            raise ValueError("Model folder is not empty.")
 
         for epoch in range(1, args.epochs+1):
             with torch.no_grad():
