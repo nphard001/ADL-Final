@@ -138,5 +138,5 @@ def image_train_view(request, img_type: str, train_idx: int):
     # return HttpResponse(AttrMetadata.GetImgBinary(img_type, ctg, img_id), content_type="image/jpeg")
 
 
-# ================================================================
+# ==============================================================
 _ApplyURLPatterns()
