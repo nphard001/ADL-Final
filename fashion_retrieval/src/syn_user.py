@@ -29,7 +29,7 @@ class SynUser:
         self.captioner_relative.opt['use_att'] = True
         # build voc
         self.vocabSize = self.captioner_relative.get_vocab_size()
-
+        # self.vocab = self.captioner_relative.vocab
         # load pre-computed data rep.
         fc = np.load('features/fc_feature.npz')['arr_0']
         att = np.load('features/att_feature.npz')['arr_0']
